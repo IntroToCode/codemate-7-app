@@ -1,0 +1,8 @@
+{
+  "name": "mba-app",
+  "version": "1.0.0",
+  "description": "MBA App — root package for running tests",
+  "scripts": {
+    "test": "cd server && npm test"
+  }
+}
