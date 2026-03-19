@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import StarRating from '../components/StarRating';
@@ -17,6 +17,7 @@ export default function RestaurantList() {
   const [newTag, setNewTag] = useState({});
   const [form, setForm] = useState({ name: '', cuisine: '', price_range: '', address: '' });
   const [autofilling, setAutofilling] = useState(false);
+  const autofillTimer = useRef(null);
 
   async function load() {
     setLoading(true);
@@ -46,6 +47,13 @@ export default function RestaurantList() {
       setAutofilling(false);
     }
   }
+
+  const handleNameChange = useCallback((e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, name: value }));
+    clearTimeout(autofillTimer.current);
+    autofillTimer.current = setTimeout(() => autofill(value), 400);
+  }, []);
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -130,8 +138,7 @@ export default function RestaurantList() {
               className="form-input"
               placeholder="Name *"
               value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              onBlur={(e) => autofill(e.target.value)}
+              onChange={handleNameChange}
               required
             />
             {autofilling && <span className="autofill-badge">✨ Autofilling…</span>}

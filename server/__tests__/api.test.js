@@ -218,6 +218,25 @@ describe('POST /api/spins/:id/veto', () => {
     const res = await request(app).post(`/api/spins/${UUID}/veto`).send({ spun_by: 'Bob' });
     expect(res.status).toBe(404);
   });
+
+  test('vetoed restaurant is excluded from the immediate re-spin', async () => {
+    const vetoedId = 'aaaa';
+    const otherId = 'bbbb';
+    const vetoedRestaurant = makeRestaurant({ id: vetoedId, name: 'Vetoed Place' });
+    const otherRestaurant = makeRestaurant({ id: otherId, name: 'Other Place' });
+    const newSpin = { id: UUID2, restaurant_id: otherId, spun_by: 'Bob', is_vetoed: false, created_at: new Date().toISOString() };
+
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ id: UUID, restaurant_id: vetoedId, is_vetoed: true }] })
+      .mockResolvedValueOnce({ rows: [vetoedRestaurant, otherRestaurant] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [newSpin] });
+
+    const res = await request(app).post(`/api/spins/${UUID}/veto`).send({ spun_by: 'Bob' });
+    expect(res.status).toBe(201);
+    expect(res.body.restaurant.id).toBe(otherId);
+    expect(res.body.restaurant.id).not.toBe(vetoedId);
+  });
 });
 
 describe('POST /api/tags', () => {
