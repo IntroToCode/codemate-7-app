@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
+import { useTempDisable } from '../context/TempDisableContext';
 import StarRating from '../components/StarRating';
 
 function priceLabel(n) {
@@ -8,6 +9,7 @@ function priceLabel(n) {
 
 export default function RestaurantList() {
   const { userName } = useUser();
+  const { tempDisabled, toggle: toggleTempDisable } = useTempDisable();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -15,7 +17,6 @@ export default function RestaurantList() {
   const [newTag, setNewTag] = useState({});
   const [form, setForm] = useState({ name: '', cuisine: '', price_range: '', address: '' });
   const [autofilling, setAutofilling] = useState(false);
-  const [tempDisabled, setTempDisabled] = useState(new Set());
 
   async function load() {
     setLoading(true);
@@ -51,7 +52,7 @@ export default function RestaurantList() {
     await fetch('/api/restaurants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, added_by: userName }),
+      body: JSON.stringify({ ...form, created_by: userName }),
     });
     setShowAdd(false);
     setForm({ name: '', cuisine: '', price_range: '', address: '' });
@@ -82,14 +83,6 @@ export default function RestaurantList() {
   async function handleToggle(id) {
     await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
     load();
-  }
-
-  function handleTempDisable(id) {
-    setTempDisabled((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
   }
 
   async function handleAddTag(restaurantId) {
@@ -207,7 +200,7 @@ export default function RestaurantList() {
                       <span className={`badge ${r.active ? 'badge-active' : 'badge-inactive'}`}>
                         {r.active ? 'Active' : 'Inactive'}
                       </span>
-                      {tempDisabled.has(r.id) && <span className="badge badge-temp">Skip next</span>}
+                      {tempDisabled.has(r.id) && <span className="badge badge-temp">⏸️ Skip next spin</span>}
                     </div>
                   </div>
                   <div className="card-meta">
@@ -254,10 +247,10 @@ export default function RestaurantList() {
                   </button>
                   <button
                     className={`btn btn-sm ${tempDisabled.has(r.id) ? 'btn-primary' : 'btn-ghost'}`}
-                    onClick={() => handleTempDisable(r.id)}
-                    title="Temporarily skip this restaurant for the next spin"
+                    onClick={() => toggleTempDisable(r.id)}
+                    title="Skip this restaurant for the next spin only. Clears automatically after spinning."
                   >
-                    {tempDisabled.has(r.id) ? '↩️ Re-enable' : '⏸️ Skip next'}
+                    {tempDisabled.has(r.id) ? '↩️ Re-enable' : '⏸️ Skip next spin'}
                   </button>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>🗑️</button>
                 </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useState } from 'react';
 import { UserProvider, useUser } from './context/UserContext';
+import { TempDisableProvider } from './context/TempDisableContext';
 import NameEntry from './components/NameEntry';
 import Layout from './components/Layout';
 import SpinPage from './pages/SpinPage';
@@ -16,16 +17,18 @@ function AppRoutes() {
   if (!userName) return <NameEntry />;
 
   return (
-    <BrowserRouter>
-      <Layout spinRefresh={spinKey}>
-        <Routes>
-          <Route path="/" element={<SpinPage onSpin={() => setSpinKey((k) => k + 1)} />} />
-          <Route path="/restaurants" element={<RestaurantList />} />
-          <Route path="/dashboard" element={<AdminDashboard />} />
-          <Route path="/log" element={<SpinLog />} />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+    <TempDisableProvider>
+      <BrowserRouter>
+        <Layout spinRefresh={spinKey}>
+          <Routes>
+            <Route path="/" element={<SpinPage onSpin={() => setSpinKey((k) => k + 1)} />} />
+            <Route path="/restaurants" element={<RestaurantList />} />
+            <Route path="/dashboard" element={<AdminDashboard />} />
+            <Route path="/log" element={<SpinLog />} />
+          </Routes>
+        </Layout>
+      </BrowserRouter>
+    </TempDisableProvider>
   );
 }
 

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   cuisine     VARCHAR(100),
   price_range SMALLINT CHECK (price_range BETWEEN 1 AND 4),
   address     TEXT,
-  added_by    VARCHAR(100) NOT NULL,
+  created_by  VARCHAR(100) NOT NULL,
   active      BOOLEAN NOT NULL DEFAULT TRUE,
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

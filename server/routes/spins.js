@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { spun_by, exclude_recent = true } = req.body;
+  const { spun_by, exclude_recent = true, skip_ids = [] } = req.body;
   if (!spun_by) return res.status(400).json({ error: 'spun_by is required' });
 
   try {
@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
     const restaurants = restaurantsResult.rows;
     const recentSpins = recentSpinsResult.rows;
 
-    const selected = selectRestaurant(restaurants, recentSpins, exclude_recent);
+    const selected = selectRestaurant(restaurants, recentSpins, exclude_recent, skip_ids);
 
     if (!selected) {
       return res.status(422).json({ error: 'No eligible restaurants to spin.' });
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
 
 router.post('/:id/veto', async (req, res) => {
   const { id } = req.params;
-  const { spun_by, exclude_recent = true } = req.body;
+  const { spun_by, exclude_recent = true, skip_ids = [] } = req.body;
   if (!spun_by) return res.status(400).json({ error: 'spun_by is required' });
 
   try {
@@ -76,7 +76,8 @@ router.post('/:id/veto', async (req, res) => {
     const selected = selectRestaurant(
       restaurantsResult.rows,
       recentSpinsResult.rows,
-      exclude_recent
+      exclude_recent,
+      skip_ids
     );
 
     if (!selected) {

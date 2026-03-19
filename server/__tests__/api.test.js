@@ -24,7 +24,7 @@ const makeRestaurant = (overrides = {}) => ({
   cuisine: 'American',
   price_range: 2,
   address: '123 Test St',
-  added_by: 'Alice',
+  created_by: 'Alice',
   active: true,
   created_at: new Date().toISOString(),
   tags: [],
@@ -49,17 +49,17 @@ describe('POST /api/restaurants', () => {
     mockPool.query.mockResolvedValueOnce({ rows: [newR] });
     const res = await request(app)
       .post('/api/restaurants')
-      .send({ name: 'Test Burgers', cuisine: 'American', added_by: 'Alice' });
+      .send({ name: 'Test Burgers', cuisine: 'American', created_by: 'Alice' });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('Test Burgers');
   });
 
   test('returns 400 if name is missing', async () => {
-    const res = await request(app).post('/api/restaurants').send({ added_by: 'Alice' });
+    const res = await request(app).post('/api/restaurants').send({ created_by: 'Alice' });
     expect(res.status).toBe(400);
   });
 
-  test('returns 400 if added_by is missing', async () => {
+  test('returns 400 if created_by is missing', async () => {
     const res = await request(app).post('/api/restaurants').send({ name: 'Tacos' });
     expect(res.status).toBe(400);
   });
@@ -148,6 +148,22 @@ describe('POST /api/spins', () => {
     expect(res.body).toHaveProperty('spin');
     expect(res.body).toHaveProperty('restaurant');
     expect(res.body.spin.spun_by).toBe('Bob');
+  });
+
+  test('excludes skip_ids from the spin when provided', async () => {
+    const restaurantA = makeRestaurant({ id: 'aaaa', name: 'Restaurant A' });
+    const restaurantB = makeRestaurant({ id: 'bbbb', name: 'Restaurant B' });
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [restaurantA, restaurantB] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID2, restaurant_id: 'bbbb', spun_by: 'Bob', is_vetoed: false, created_at: new Date().toISOString() }] });
+
+    const res = await request(app)
+      .post('/api/spins')
+      .send({ spun_by: 'Bob', skip_ids: ['aaaa'] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.restaurant.id).toBe('bbbb');
   });
 
   test('returns 400 if spun_by is missing', async () => {

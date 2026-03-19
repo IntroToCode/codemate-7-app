@@ -35,16 +35,16 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, cuisine, price_range, address, added_by } = req.body;
-  if (!name || !added_by) {
-    return res.status(400).json({ error: 'name and added_by are required' });
+  const { name, cuisine, price_range, address, created_by } = req.body;
+  if (!name || !created_by) {
+    return res.status(400).json({ error: 'name and created_by are required' });
   }
   try {
     const result = await pool.query(
-      `INSERT INTO restaurants (name, cuisine, price_range, address, added_by)
+      `INSERT INTO restaurants (name, cuisine, price_range, address, created_by)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [name, cuisine || null, price_range || null, address || null, added_by]
+      [name, cuisine || null, price_range || null, address || null, created_by]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

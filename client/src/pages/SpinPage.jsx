@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useUser } from '../context/UserContext';
+import { useTempDisable } from '../context/TempDisableContext';
 
 const SLOT_SYMBOLS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
 
@@ -9,6 +10,7 @@ function priceLabel(n) {
 
 export default function SpinPage({ onSpin }) {
   const { userName } = useUser();
+  const { tempDisabled, clearAll } = useTempDisable();
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -28,19 +30,21 @@ export default function SpinPage({ onSpin }) {
       setSlotSymbol(SLOT_SYMBOLS[symbolIdx]);
     }, 80);
 
+    const skipIds = Array.from(tempDisabled);
+
     try {
       let res;
       if (isVeto && vetoSpinId) {
         res = await fetch(`/api/spins/${vetoSpinId}/veto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent }),
+          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent, skip_ids: skipIds }),
         });
       } else {
         res = await fetch('/api/spins', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent }),
+          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent, skip_ids: skipIds }),
         });
       }
 
@@ -56,6 +60,7 @@ export default function SpinPage({ onSpin }) {
       } else {
         setResult(data);
         setSlotSymbol('🎉');
+        clearAll();
         if (onSpin) onSpin();
       }
     } catch (err) {
@@ -99,6 +104,13 @@ export default function SpinPage({ onSpin }) {
             />
             <span>Skip last 5 visited</span>
           </label>
+
+          {tempDisabled.size > 0 && (
+            <p className="skip-notice">
+              ⏸️ {tempDisabled.size} restaurant{tempDisabled.size > 1 ? 's' : ''} skipped this spin
+              (set on the Restaurants page — clears after spin)
+            </p>
+          )}
         </div>
 
         {error && <div className="spin-error">{error}</div>}

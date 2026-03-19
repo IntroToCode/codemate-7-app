@@ -52,7 +52,7 @@ export default function AdminDashboard() {
           </thead>
           <tbody>
             {restaurants.map((r) => {
-              const isOwner = r.added_by === userName;
+              const isOwner = r.created_by === userName;
               return (
                 <tr key={r.id} className={r.active ? '' : 'row-inactive'}>
                   <td className="td-name">{r.name}</td>
@@ -65,7 +65,7 @@ export default function AdminDashboard() {
                     }
                   </td>
                   <td>
-                    {r.added_by}
+                    {r.created_by}
                     {isOwner && <span className="owner-badge"> 👑</span>}
                   </td>
                   <td>

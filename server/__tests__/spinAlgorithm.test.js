@@ -49,7 +49,7 @@ describe('selectRestaurant', () => {
     expect(results.has('a') || results.has('b')).toBe(true);
   });
 
-  test('falls back to full list when all active restaurants are in last 5', () => {
+  test('falls back to full active list when all active restaurants are in last 5', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b')];
     const recentSpins = [makeSpin('a'), makeSpin('b')];
     const result = selectRestaurant(restaurants, recentSpins, true);
@@ -85,5 +85,28 @@ describe('selectRestaurant', () => {
       const result = selectRestaurant(restaurants, [], true);
       expect(result.id).toBe('b');
     }
+  });
+
+  test('excludes skip_ids from selection (temp disable)', () => {
+    const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
+    for (let i = 0; i < 30; i++) {
+      const result = selectRestaurant(restaurants, [], false, ['a', 'b']);
+      expect(result.id).toBe('c');
+    }
+  });
+
+  test('falls back to full active list when all are in skip_ids', () => {
+    const restaurants = [makeRestaurant('a'), makeRestaurant('b')];
+    const result = selectRestaurant(restaurants, [], false, ['a', 'b']);
+    expect(result).not.toBeNull();
+    expect(['a', 'b']).toContain(result.id);
+  });
+
+  test('skip_ids clears after being passed (stateless)', () => {
+    const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
+    const resultWith = selectRestaurant(restaurants, [], false, ['a']);
+    expect(['b', 'c']).toContain(resultWith.id);
+    const resultWithout = selectRestaurant(restaurants, [], false, []);
+    expect(['a', 'b', 'c']).toContain(resultWithout.id);
   });
 });
