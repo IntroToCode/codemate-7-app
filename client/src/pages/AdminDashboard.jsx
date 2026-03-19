@@ -34,7 +34,10 @@ export default function AdminDashboard() {
     <div className="admin-page">
       <div className="page-header">
         <h2>⚙️ Admin Dashboard</h2>
-        <p className="page-sub">Toggle restaurant availability. Your admin status is determined by being the person who added a restaurant.</p>
+        <p className="page-sub">
+          You can toggle availability for restaurants <em>you added</em> (marked 👑).
+          Other rows are view-only.
+        </p>
       </div>
 
       <div className="admin-table-wrap">
@@ -54,7 +57,7 @@ export default function AdminDashboard() {
             {restaurants.map((r) => {
               const isOwner = r.created_by === userName;
               return (
-                <tr key={r.id} className={r.active ? '' : 'row-inactive'}>
+                <tr key={r.id} className={`${r.active ? '' : 'row-inactive'} ${!isOwner ? 'row-readonly' : ''}`}>
                   <td className="td-name">{r.name}</td>
                   <td>{r.cuisine || '—'}</td>
                   <td>{priceLabel(r.price_range)}</td>
@@ -74,12 +77,16 @@ export default function AdminDashboard() {
                     </span>
                   </td>
                   <td>
-                    <button
-                      className={`btn btn-sm ${r.active ? 'btn-ghost' : 'btn-primary'}`}
-                      onClick={() => handleToggle(r.id)}
-                    >
-                      {r.active ? '🚫 Deactivate' : '✅ Activate'}
-                    </button>
+                    {isOwner ? (
+                      <button
+                        className={`btn btn-sm ${r.active ? 'btn-ghost' : 'btn-primary'}`}
+                        onClick={() => handleToggle(r.id)}
+                      >
+                        {r.active ? '🚫 Deactivate' : '✅ Activate'}
+                      </button>
+                    ) : (
+                      <span className="td-readonly">—</span>
+                    )}
                   </td>
                 </tr>
               );

@@ -19,12 +19,19 @@ router.get('/', async (req, res) => {
           JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', t.id, 'label', t.label))
           FILTER (WHERE t.id IS NOT NULL), '[]'
         ) AS tags,
-        ROUND(AVG(rt.score)::numeric, 1) AS avg_rating,
-        COUNT(rt.id)::int AS rating_count
+        rq.avg_rating,
+        rq.rating_count
       FROM restaurants r
       LEFT JOIN tags t ON t.restaurant_id = r.id
-      LEFT JOIN ratings rt ON rt.restaurant_id = r.id
-      GROUP BY r.id
+      LEFT JOIN (
+        SELECT
+          restaurant_id,
+          ROUND(AVG(score)::numeric, 1) AS avg_rating,
+          COUNT(id)::int AS rating_count
+        FROM ratings
+        GROUP BY restaurant_id
+      ) rq ON rq.restaurant_id = r.id
+      GROUP BY r.id, rq.avg_rating, rq.rating_count
       ORDER BY r.created_at DESC
     `);
     res.json(result.rows);

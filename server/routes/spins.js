@@ -4,15 +4,16 @@ const pool = require('../db/pool');
 const { selectRestaurant } = require('../lib/spinAlgorithm');
 
 router.get('/', async (req, res) => {
-  const limit = parseInt(req.query.limit, 10) || 50;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   try {
     const result = await pool.query(
       `SELECT s.*, r.name AS restaurant_name
        FROM spins s
        LEFT JOIN restaurants r ON r.id = s.restaurant_id
        ORDER BY s.created_at DESC
-       LIMIT $1`,
-      [limit]
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
     res.json(result.rows);
   } catch (err) {

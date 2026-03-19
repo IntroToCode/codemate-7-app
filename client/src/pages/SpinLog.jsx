@@ -1,20 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+const PAGE_SIZE = 50;
 
 export default function SpinLog() {
   const [spins, setSpins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  async function load() {
-    setLoading(true);
+  const load = useCallback(async (currentOffset = 0, append = false) => {
+    append ? setLoadingMore(true) : setLoading(true);
     try {
-      const res = await fetch('/api/spins?limit=100');
-      setSpins(await res.json());
+      const res = await fetch(`/api/spins?limit=${PAGE_SIZE}&offset=${currentOffset}`);
+      const data = await res.json();
+      setSpins((prev) => append ? [...prev, ...data] : data);
+      setHasMore(data.length === PAGE_SIZE);
+      setOffset(currentOffset + data.length);
     } finally {
-      setLoading(false);
+      append ? setLoadingMore(false) : setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(0, false); }, [load]);
+
+  function loadMore() {
+    load(offset, true);
+  }
 
   if (loading) return <div className="loading">Loading log… 📜</div>;
 
@@ -54,6 +66,18 @@ export default function SpinLog() {
           </tbody>
         </table>
       </div>
+
+      {hasMore && (
+        <div className="load-more-wrap">
+          <button className="btn btn-ghost" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : '⬇️ Load more'}
+          </button>
+        </div>
+      )}
+
+      {!hasMore && spins.length > 0 && (
+        <p className="log-end">You've reached the beginning of history 🏁</p>
+      )}
     </div>
   );
 }
