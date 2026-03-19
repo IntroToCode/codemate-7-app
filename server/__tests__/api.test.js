@@ -287,4 +287,32 @@ describe('POST /api/ratings', () => {
       .send({ restaurant_id: UUID2, rated_by: 'Alice' });
     expect(res.status).toBe(400);
   });
+
+  test('restaurant GET reflects updated avg_rating after upsert', async () => {
+    const ratingV1 = { id: UUID, restaurant_id: UUID2, rated_by: 'Alice', score: 2, created_at: new Date().toISOString() };
+    const ratingV2 = { id: UUID, restaurant_id: UUID2, rated_by: 'Alice', score: 4, created_at: new Date().toISOString() };
+    const restaurantWithUpdatedRating = makeRestaurant({ id: UUID2, avg_rating: '4.0', rating_count: 1 });
+
+    mockPool.query.mockResolvedValueOnce({ rows: [ratingV1] });
+    const post1 = await request(app)
+      .post('/api/ratings')
+      .send({ restaurant_id: UUID2, rated_by: 'Alice', score: 2 });
+    expect(post1.status).toBe(201);
+    expect(post1.body.score).toBe(2);
+
+    mockPool.query.mockResolvedValueOnce({ rows: [ratingV2] });
+    const post2 = await request(app)
+      .post('/api/ratings')
+      .send({ restaurant_id: UUID2, rated_by: 'Alice', score: 4 });
+    expect(post2.status).toBe(201);
+    expect(post2.body.score).toBe(4);
+
+    mockPool.query.mockResolvedValueOnce({ rows: [restaurantWithUpdatedRating] });
+    const getRes = await request(app).get('/api/restaurants');
+    expect(getRes.status).toBe(200);
+    const restaurant = getRes.body.find((r) => r.id === UUID2);
+    expect(restaurant).toBeDefined();
+    expect(parseFloat(restaurant.avg_rating)).toBe(4.0);
+    expect(restaurant.rating_count).toBe(1);
+  });
 });

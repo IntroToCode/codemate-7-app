@@ -67,6 +67,8 @@ router.post('/:id/veto', async (req, res) => {
     );
     if (vetoResult.rows.length === 0) return res.status(404).json({ error: 'Spin not found' });
 
+    const vetoedRestaurantId = vetoResult.rows[0].restaurant_id;
+
     const [restaurantsResult, recentSpinsResult] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
       pool.query(
@@ -74,11 +76,15 @@ router.post('/:id/veto', async (req, res) => {
       ),
     ]);
 
+    const vetoSkipIds = vetoedRestaurantId
+      ? [...new Set([...skip_ids, vetoedRestaurantId])]
+      : skip_ids;
+
     const selected = selectRestaurant(
       restaurantsResult.rows,
       recentSpinsResult.rows,
       exclude_recent,
-      skip_ids
+      vetoSkipIds
     );
 
     if (!selected) {
