@@ -16,5 +16,19 @@ Example
 **Prompt:** "Use the API x to give me y"
 
 **Author:**  Joe
- 
- 
+
+---
+
+### March 19, 2026
+
+**Prompt:** "why is your agents.md not working"
+
+**Author:** Alan
+
+---
+
+### March 19, 2026
+
+**Prompt:** "is the replit.md being referenced"
+
+**Author:** Alan
