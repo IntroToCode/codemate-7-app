@@ -39,3 +39,12 @@ The Vite dev server proxies `/api/*` requests to `http://localhost:3001`, so the
 - Frontend: `cd client && npm run dev`
 - Backend: `cd server && node server.js`
 - The health check at `/api/health` verifies both Express and database connectivity
+
+## Prompting rules
+- For every prompt given to the agent, write in PROMPTS.md based on the following format:
+```
+[Current Date / Current Time]
+Prompt: [the prompt used]
+
+Author: [Current Replit User Account Name]
+```
