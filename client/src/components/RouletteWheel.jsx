@@ -79,6 +79,8 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
   const lastTick = useRef(0);
   const winnerRef = useRef(winnerIndex);
   const onCompleteRef = useRef(onSpinComplete);
+  const lastSeg = useRef(-1);
+  const hopTime = useRef(0);
   const [entering, setEntering] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -115,24 +117,21 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     lastTick.current = 0;
     winnerRef.current = null;
     wheelAngle.current = 0;
+    lastSeg.current = -1;
+    hopTime.current = 0;
 
     function tick(now) {
       const isFast = phase.current === 'fast';
       const progress = stopData.current
         ? Math.min((now - stopData.current.startTime) / stopData.current.duration, 1)
         : 0;
-      const interval = isFast ? 48 : 48 + progress * 580;
-
-      if (now - lastTick.current >= interval) {
-        lastTick.current = now;
-        playTick(isFast ? 0.15 : 0.12 * (1 - progress * 0.6));
-      }
 
       if (phase.current === 'fast') {
         const elapsed = now - fastStart.current;
         ballAngle.current = -Math.PI / 2 + elapsed * BALL_SPEED;
         wheelAngle.current = -(elapsed * WHEEL_SPEED);
-        moveBall();
+        checkHop(now);
+        moveBall(now);
         moveWheel();
 
         const wi = winnerRef.current;
@@ -159,7 +158,8 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         const eased = 1 - Math.pow(1 - t, 3);
         ballAngle.current = ballStart + ballTravel * eased;
         wheelAngle.current = wheelStart + wheelTravel * eased;
-        moveBall();
+        checkHop(now);
+        moveBall(now);
         moveWheel();
 
         if (t >= 1) {
@@ -180,17 +180,45 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     };
   }, [spinning, sa]);
 
-  function moveBall() {
+  const HOP_DURATION = 90;
+  const HOP_AMPLITUDE_FAST = 4;
+  const HOP_AMPLITUDE_SLOW = 7;
+
+  function checkHop(now) {
+    const relAngle = ballAngle.current - wheelAngle.current;
+    const norm = (((relAngle + Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const seg = Math.floor(norm / sa);
+    if (lastSeg.current !== -1 && seg !== lastSeg.current) {
+      hopTime.current = now;
+      const isStopping = phase.current === 'stopping';
+      const vol = isStopping ? 0.18 : 0.08;
+      playTick(vol);
+    }
+    lastSeg.current = seg;
+  }
+
+  function moveBall(now) {
     const a = ballAngle.current;
-    const x = (BALL_ORBIT_R * Math.cos(a)).toFixed(2);
-    const y = (BALL_ORBIT_R * Math.sin(a)).toFixed(2);
+    let hop = 0;
+    if (hopTime.current > 0 && now !== undefined) {
+      const elapsed = now - hopTime.current;
+      if (elapsed < HOP_DURATION) {
+        const t = elapsed / HOP_DURATION;
+        const isStopping = phase.current === 'stopping';
+        const amp = isStopping ? HOP_AMPLITUDE_SLOW : HOP_AMPLITUDE_FAST;
+        hop = -amp * Math.sin(Math.PI * t) * (1 - t * 0.3);
+      }
+    }
+    const r = BALL_ORBIT_R + hop;
+    const x = (r * Math.cos(a)).toFixed(2);
+    const y = (r * Math.sin(a)).toFixed(2);
     if (ballRef.current) {
       ballRef.current.setAttribute('cx', x);
       ballRef.current.setAttribute('cy', y);
     }
     if (ballShineRef.current) {
-      ballShineRef.current.setAttribute('cx', (BALL_ORBIT_R * Math.cos(a) - 3).toFixed(2));
-      ballShineRef.current.setAttribute('cy', (BALL_ORBIT_R * Math.sin(a) - 3).toFixed(2));
+      ballShineRef.current.setAttribute('cx', (r * Math.cos(a) - 3).toFixed(2));
+      ballShineRef.current.setAttribute('cy', (r * Math.sin(a) - 3).toFixed(2));
     }
   }
 

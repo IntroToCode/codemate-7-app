@@ -41,3 +41,11 @@ add roulette sound effect.
 **Author:** Alan
 
 ---
+
+### 3/22/2026
+
+**Prompt:** "Additionally, everytime it switches between choices right at the corner, it should hop a bit like in real life where theres little ridges in between choices"
+
+**Author:** Alan
+
+---
