@@ -44,7 +44,55 @@ add roulette sound effect.
 
 ### 3/22/2026
 
+**Prompt:** "Shouldn't it pull restuarnts from the list instead of using get/api/restaurants? or is that the api call to get it from our list."
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
+**Prompt:** "why is it everytime the app refreshes, this screen shows up and I have to click go back to replit, and then it'll give me a refuse to conenct, and then i have to click back to my page"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
 **Prompt:** "Additionally, everytime it switches between choices right at the corner, it should hop a bit like in real life where theres little ridges in between choices"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
+**Prompt:** "the ball doesnt hop though"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
+**Prompt:** "Also the spin for some reason seem to still get faster at the end"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
+**Prompt:** "THe base wheel for some reason spins slow than faster, that's counter intuitive"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026
+
+**Prompt:** "Can you also add any prompt that didn't make it into prompt.md"
 
 **Author:** Alan
 
