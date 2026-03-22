@@ -180,10 +180,6 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     };
   }, [spinning, sa]);
 
-  const HOP_DURATION = 90;
-  const HOP_AMPLITUDE_FAST = 4;
-  const HOP_AMPLITUDE_SLOW = 7;
-
   function checkHop(now) {
     const relAngle = ballAngle.current - wheelAngle.current;
     const norm = (((relAngle + Math.PI / 2) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
@@ -191,24 +187,26 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     if (lastSeg.current !== -1 && seg !== lastSeg.current) {
       hopTime.current = now;
       const isStopping = phase.current === 'stopping';
-      const vol = isStopping ? 0.18 : 0.08;
+      const vol = isStopping ? 0.22 : 0.10;
       playTick(vol);
     }
     lastSeg.current = seg;
   }
 
+  function getHopOffset(now) {
+    if (hopTime.current <= 0 || now === undefined) return 0;
+    const elapsed = now - hopTime.current;
+    const isStopping = phase.current === 'stopping' || phase.current === 'done';
+    const dur = isStopping ? 140 : 55;
+    const amp = isStopping ? 16 : 8;
+    if (elapsed >= dur) return 0;
+    const t = elapsed / dur;
+    return -amp * Math.sin(Math.PI * t) * Math.exp(-t * 1.2);
+  }
+
   function moveBall(now) {
     const a = ballAngle.current;
-    let hop = 0;
-    if (hopTime.current > 0 && now !== undefined) {
-      const elapsed = now - hopTime.current;
-      if (elapsed < HOP_DURATION) {
-        const t = elapsed / HOP_DURATION;
-        const isStopping = phase.current === 'stopping';
-        const amp = isStopping ? HOP_AMPLITUDE_SLOW : HOP_AMPLITUDE_FAST;
-        hop = -amp * Math.sin(Math.PI * t) * (1 - t * 0.3);
-      }
-    }
+    const hop = getHopOffset(now);
     const r = BALL_ORBIT_R + hop;
     const x = (r * Math.cos(a)).toFixed(2);
     const y = (r * Math.sin(a)).toFixed(2);
