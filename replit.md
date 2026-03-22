@@ -94,3 +94,12 @@ npm test
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
 - **Ratings**: Upsert pattern — one rating per user per restaurant, updates in place.
+
+## Prompting rules
+- For every prompt given to the agent, write in PROMPTS.md based on the following format:
+```
+[Current Date / Current Time]
+Prompt: [the prompt used]
+
+Author: [Current Replit User Account Name. If not provided, ask during sesion]
+```
