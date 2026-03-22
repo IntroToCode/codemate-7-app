@@ -526,4 +526,34 @@ body {
   .restaurant-cards { grid-template-columns: 1fr; }
   .result-card { flex-direction: column; }
   .page-header { flex-direction: column; align-items: flex-start; }
+  .header-actions { flex-direction: column; width: 100%; }
 }
+
+/* ─── Restaurant Search ──────────────────────────────────────────────── */
+.header-actions { display: flex; gap: 8px; }
+.restaurant-search { margin-bottom: 24px; }
+.search-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.search-header h3 { margin: 0; }
+.search-hint { color: var(--text-muted); margin-bottom: 12px; font-size: 0.9rem; }
+.search-error { color: #d32f2f; font-size: 0.85rem; margin-top: 8px; }
+.search-loading { color: var(--text-muted); font-size: 0.9rem; padding: 16px 0; }
+.search-empty { color: var(--text-muted); font-size: 0.9rem; padding: 16px 0; }
+.search-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.zip-badge { background: var(--orange); color: white; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 0.85rem; white-space: nowrap; }
+.zip-form .form-row { display: flex; gap: 8px; }
+
+.search-results-list { max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.search-result-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background var(--transition);
+}
+.search-result-item:last-child { border-bottom: none; }
+.search-result-item:hover:not(.already-added) { background: #fff3e6; }
+.search-result-item.already-added { opacity: 0.5; cursor: not-allowed; background: #f5f5f5; }
+.result-info { display: flex; flex-direction: column; gap: 2px; }
+.result-name { font-weight: 600; font-size: 0.95rem; }
+.duplicate-label { color: var(--text-muted); font-size: 0.8rem; font-style: italic; }
+.result-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.result-address { font-size: 0.8rem; color: var(--text-muted); }
+.result-add-icon { font-size: 1.2rem; color: var(--orange); font-weight: 700; }

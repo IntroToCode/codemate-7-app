@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (server: 27 tests, client: 45 tests)
+- **Testing**: Jest + Supertest (server: 88 tests, client: 45 tests)
 
 ## Project Structure
 ```
@@ -21,6 +21,7 @@ client/
       NameEntry.jsx      - Full-screen name entry on first visit
       Layout.jsx         - App shell (header, nav, sidebar)
       RecentHits.jsx     - Sidebar: last 5 non-vetoed spins
+      RestaurantSearch.jsx - Google Places zip code search + add flow
       StarRating.jsx     - Interactive/read-only star rating component
       RouletteWheel.jsx  - Casino SVG roulette wheel with spinning base + ball animation + Web Audio sounds
       rouletteUtils.jsx  - Shared utility functions (segment paths, clamp, shuffle, stop angle math)
@@ -40,6 +41,8 @@ server/
   lib/
     spinAlgorithm.js     - Pure spin selection fn (last-5 exclusion, fallback)
     autofill.js          - Mock restaurant autofill fixture
+    places.js            - Google Places API integration (geocoding + nearby search)
+    duplicates.js        - Duplicate detection helper (name+address or place_id match)
     ratingAvg.js         - Pure average rating calculation
   routes/
     restaurants.js       - CRUD + autofill + toggle routes
@@ -52,6 +55,9 @@ server/
     autofill.test.js     - Unit tests for autofill lookup
     ratingAvg.test.js    - Unit tests for rating average calculation
     api.test.js          - Integration tests for all REST endpoints
+    places.test.js       - Unit tests for Places API utilities
+    duplicates.test.js   - Unit tests for duplicate detection
+    search-api.test.js   - Integration tests for Places search endpoint
 
 client/
   src/__tests__/
@@ -64,7 +70,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 ```
 
 ## Data Schema
-- **restaurants**: id (UUID), name, cuisine, price_range (1-4), address, added_by, active, created_at
+- **restaurants**: id (UUID), name, cuisine, price_range (1-4), address, created_by, google_place_id, active, created_at
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
@@ -79,6 +85,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | PATCH | /api/restaurants/:id/toggle | Toggle active status |
 | DELETE | /api/restaurants/:id | Delete restaurant |
 | GET | /api/restaurants/autofill?name= | Mock autofill by name |
+| GET | /api/restaurants/search?zip=&keyword= | Google Places nearby search |
 | GET | /api/spins | Spin history |
 | POST | /api/spins | Spin (with exclusion logic) |
 | POST | /api/spins/:id/veto | Veto + re-spin |
@@ -88,19 +95,21 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 
 ## Running Tests
 ```bash
-cd server && npm test    # 27 server-side tests
+cd server && npm test    # 88 server-side tests
 cd client && npm test    # 45 client-side tests
 ```
 
 ## Environment Variables
 - `DATABASE_URL` - PostgreSQL connection string (set automatically by Replit)
 - `NODE_ENV` - Set to "production" for SSL mode on DB
+- `google_place_api_key` - Google Places API key for restaurant search
 
 ## Key Design Decisions
 - **Identity**: Username stored in localStorage, matched against `added_by`/`created_by` fields. No passwords.
 - **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
+- **Google Places search**: Users can search by zip code + optional keyword. Duplicates detected by google_place_id or normalized name+address match.
 - **Ratings**: Upsert pattern — one rating per user per restaurant, updates in place.
 
 ## Prompting rules

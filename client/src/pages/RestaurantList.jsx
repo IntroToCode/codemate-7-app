@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import StarRating from '../components/StarRating';
+import RestaurantSearch from '../components/RestaurantSearch';
 
 function priceLabel(n) {
   return n ? '$'.repeat(n) : '—';
@@ -12,12 +13,10 @@ export default function RestaurantList() {
   const { tempDisabled, toggle: toggleTempDisable } = useTempDisable();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [editId, setEditId] = useState(null);
   const [newTag, setNewTag] = useState({});
   const [form, setForm] = useState({ name: '', cuisine: '', price_range: '', address: '' });
-  const [autofilling, setAutofilling] = useState(false);
-  const autofillTimer = useRef(null);
 
   async function load() {
     setLoading(true);
@@ -31,39 +30,20 @@ export default function RestaurantList() {
 
   useEffect(() => { load(); }, []);
 
-  async function autofill(name) {
-    if (!name.trim()) return;
-    setAutofilling(true);
-    try {
-      const res = await fetch(`/api/restaurants/autofill?name=${encodeURIComponent(name)}`);
-      const data = await res.json();
-      setForm((f) => ({
-        ...f,
-        cuisine: data.cuisine || f.cuisine,
-        price_range: data.price_range || f.price_range,
-        address: data.address || f.address,
-      }));
-    } finally {
-      setAutofilling(false);
-    }
-  }
-
-  const handleNameChange = useCallback((e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, name: value }));
-    clearTimeout(autofillTimer.current);
-    autofillTimer.current = setTimeout(() => autofill(value), 400);
-  }, []);
-
-  async function handleAdd(e) {
-    e.preventDefault();
+  async function handleSearchSelect(place) {
     await fetch('/api/restaurants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, created_by: userName }),
+      body: JSON.stringify({
+        name: place.name,
+        cuisine: place.cuisine,
+        price_range: place.price_range,
+        address: place.address,
+        google_place_id: place.google_place_id,
+        created_by: userName,
+      }),
     });
-    setShowAdd(false);
-    setForm({ name: '', cuisine: '', price_range: '', address: '' });
+    setShowSearch(false);
     load();
   }
 
@@ -125,54 +105,19 @@ export default function RestaurantList() {
     <div className="restaurant-list-page">
       <div className="page-header">
         <h2>🗂️ Restaurants</h2>
-        <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? '✕ Cancel' : '＋ Add Restaurant'}
+        <button className="btn btn-primary" onClick={() => setShowSearch(!showSearch)}>
+          {showSearch ? '✕ Cancel' : '＋ Add Restaurant'}
         </button>
       </div>
 
-      {showAdd && (
-        <form className="add-form card" onSubmit={handleAdd}>
-          <h3>New Restaurant</h3>
-          <div className="form-row">
-            <input
-              className="form-input"
-              placeholder="Name *"
-              value={form.name}
-              onChange={handleNameChange}
-              required
-            />
-            {autofilling && <span className="autofill-badge">✨ Autofilling…</span>}
-          </div>
-          <div className="form-row">
-            <input
-              className="form-input"
-              placeholder="Cuisine"
-              value={form.cuisine}
-              onChange={(e) => setForm((f) => ({ ...f, cuisine: e.target.value }))}
-            />
-            <select
-              className="form-input"
-              value={form.price_range}
-              onChange={(e) => setForm((f) => ({ ...f, price_range: e.target.value }))}
-            >
-              <option value="">Price range</option>
-              <option value="1">$ Budget</option>
-              <option value="2">$$ Mid-range</option>
-              <option value="3">$$$ Upscale</option>
-              <option value="4">$$$$ Fine dining</option>
-            </select>
-          </div>
-          <input
-            className="form-input"
-            placeholder="Address"
-            value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-          />
-          <button className="btn btn-primary" type="submit">Add 🎉</button>
-        </form>
+      {showSearch && (
+        <RestaurantSearch
+          onSelect={handleSearchSelect}
+          onClose={() => setShowSearch(false)}
+        />
       )}
 
-      {restaurants.length === 0 && !showAdd && (
+      {restaurants.length === 0 && !showSearch && (
         <div className="empty-state">
           <p>No restaurants yet! Add your first spot 🍔</p>
         </div>
