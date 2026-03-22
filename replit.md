@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (53 tests: unit + integration)
+- **Testing**: Jest + Supertest (server: 27 tests, client: 45 tests)
 
 ## Project Structure
 ```
@@ -22,8 +22,10 @@ client/
       Layout.jsx         - App shell (header, nav, sidebar)
       RecentHits.jsx     - Sidebar: last 5 non-vetoed spins
       StarRating.jsx     - Interactive/read-only star rating component
+      RouletteWheel.jsx  - Casino SVG roulette wheel with spinning base + ball animation + Web Audio sounds
+      rouletteUtils.jsx  - Shared utility functions (segment paths, clamp, shuffle, stop angle math)
     pages/
-      SpinPage.jsx       - Spin wheel with CSS slot-machine animation + veto
+      SpinPage.jsx       - Casino roulette wheel with animated ball + veto
       RestaurantList.jsx - Add/edit/delete restaurants, tags, ratings
       AdminDashboard.jsx - Table-based availability toggler
       SpinLog.jsx        - Full spin history log
@@ -50,6 +52,13 @@ server/
     autofill.test.js     - Unit tests for autofill lookup
     ratingAvg.test.js    - Unit tests for rating average calculation
     api.test.js          - Integration tests for all REST endpoints
+
+client/
+  src/__tests__/
+    rouletteUtils.test.js   - Unit tests for wheel utility functions (33 tests)
+    RouletteWheel.test.jsx  - Component rendering tests (12 tests)
+  jest.config.cjs           - Jest config for client (jsdom environment)
+  babel.config.cjs          - Babel config for Jest transforms
 
 start.sh                 - Startup: builds React, starts Express, watches for changes
 ```
@@ -79,9 +88,8 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 
 ## Running Tests
 ```bash
-cd server && npm test
-# or from root:
-npm test
+cd server && npm test    # 27 server-side tests
+cd client && npm test    # 45 client-side tests
 ```
 
 ## Environment Variables
@@ -94,3 +102,12 @@ npm test
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
 - **Ratings**: Upsert pattern — one rating per user per restaurant, updates in place.
+
+## Prompting rules
+- For every prompt given to the agent, write in PROMPTS.md based on the following format:
+```
+[Current Date / Current Time]
+Prompt: [the prompt used]
+
+Author: [Current Replit User Account Name. If not provided, ask during sesion]
+```

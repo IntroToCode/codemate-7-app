@@ -1,36 +1,81 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
+import RouletteWheel from '../components/RouletteWheel';
 
-const SLOT_SYMBOLS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
+import { shuffleArray, priceLabel } from '../components/rouletteUtils.jsx';
 
-function priceLabel(n) {
-  return n ? '$'.repeat(n) : '?';
+const FOOD_EMOJIS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export default function SpinPage({ onSpin }) {
   const { userName } = useUser();
   const { tempDisabled, clearAll } = useTempDisable();
+
+  const [allRestaurants, setAllRestaurants] = useState([]);
+  const [loadingRest, setLoadingRest] = useState(true);
+  const [wheelRestaurants, setWheelRestaurants] = useState([]);
   const [spinning, setSpinning] = useState(false);
+  const [winnerIndex, setWinnerIndex] = useState(null);
+  const pendingResultRef = useRef(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [excludeRecent, setExcludeRecent] = useState(true);
-  const [slotSymbol, setSlotSymbol] = useState('🎰');
   const [vetoing, setVetoing] = useState(false);
-  const intervalRef = useRef(null);
+  const spinInProgress = useRef(false);
+
+  useEffect(() => {
+    fetch('/api/restaurants')
+      .then((r) => r.json())
+      .then((data) => {
+        const active = Array.isArray(data) ? data.filter((r) => r.active) : [];
+        setAllRestaurants(active);
+        const initial = shuffleArray(active).slice(0, 8);
+        setWheelRestaurants(initial);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingRest(false));
+  }, []);
+
+  const activeOnWheel = useCallback(() => {
+    return allRestaurants.filter((r) => !tempDisabled.has(r.id));
+  }, [allRestaurants, tempDisabled]);
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
+    if (spinInProgress.current) return;
+    spinInProgress.current = true;
+
     setError('');
-    setSpinning(true);
     setResult(null);
+    pendingResultRef.current = null;
+    setWinnerIndex(null);
+    setSpinning(false);
+    if (isVeto) setVetoing(true);
 
-    let symbolIdx = 0;
-    intervalRef.current = setInterval(() => {
-      symbolIdx = (symbolIdx + 1) % SLOT_SYMBOLS.length;
-      setSlotSymbol(SLOT_SYMBOLS[symbolIdx]);
-    }, 80);
+    const available = activeOnWheel();
+    if (available.length < 2) {
+      setError('You need at least 2 active restaurants to spin!');
+      spinInProgress.current = false;
+      setVetoing(false);
+      return;
+    }
 
-    const skipIds = Array.from(tempDisabled);
+    const pool = shuffleArray(available).slice(0, 8);
+    setWheelRestaurants(pool);
+
+    const entranceDuration = pool.length * 100 + 450;
+    await sleep(entranceDuration);
+
+    setSpinning(true);
+
+    const poolIdSet = new Set(pool.map((r) => r.id));
+    const extraSkips = available.filter((r) => !poolIdSet.has(r.id)).map((r) => r.id);
+    const skipIds = [...Array.from(tempDisabled), ...extraSkips];
+
+    const minSpinPromise = sleep(3600);
 
     try {
       let res;
@@ -49,51 +94,86 @@ export default function SpinPage({ onSpin }) {
       }
 
       const data = await res.json();
-
-      await new Promise((r) => setTimeout(r, 900));
-
-      clearInterval(intervalRef.current);
+      await minSpinPromise;
 
       if (!res.ok) {
         setError(data.error || 'Something went wrong.');
-        setSlotSymbol('🎰');
-      } else {
-        setResult(data);
-        setSlotSymbol('🎉');
-        clearAll();
-        if (onSpin) onSpin();
+        setSpinning(false);
+        setVetoing(false);
+        spinInProgress.current = false;
+        return;
       }
-    } catch (err) {
-      clearInterval(intervalRef.current);
+
+      const idx = pool.findIndex((r) => r.id === data.restaurant.id);
+      if (idx < 0) {
+        setError(`"${data.restaurant.name}" was picked but is not on the wheel. Please spin again.`);
+        setSpinning(false);
+        setVetoing(false);
+        spinInProgress.current = false;
+        return;
+      }
+
+      pendingResultRef.current = data;
+      setWinnerIndex(idx);
+    } catch {
       setError('Network error. Please try again.');
-      setSlotSymbol('🎰');
-    } finally {
       setSpinning(false);
       setVetoing(false);
+      spinInProgress.current = false;
     }
+  }
+
+  function handleSpinComplete() {
+    setSpinning(false);
+    setVetoing(false);
+    setResult(pendingResultRef.current);
+    clearAll();
+    spinInProgress.current = false;
+    if (onSpin) onSpin();
   }
 
   function handleVeto() {
     if (!result?.spin?.id) return;
-    setVetoing(true);
     doSpin(true, result.spin.id);
   }
+
+  const available = activeOnWheel();
+  const tooFew = !loadingRest && available.length < 2;
 
   return (
     <div className="spin-page">
       <div className="spin-hero">
-        <div className={`slot-display ${spinning ? 'spinning' : ''}`}>
-          <span className="slot-symbol">{slotSymbol}</span>
-        </div>
+        {loadingRest || wheelRestaurants.length < 2 ? (
+          <div className="roulette-loading">
+            {loadingRest ? 'Loading wheel…' : ''}
+          </div>
+        ) : (
+          <RouletteWheel
+            restaurants={wheelRestaurants}
+            spinning={spinning}
+            winnerIndex={winnerIndex}
+            onSpinComplete={handleSpinComplete}
+          />
+        )}
 
         <div className="spin-controls">
-          <button
-            className="btn btn-spin"
-            onClick={() => doSpin(false)}
-            disabled={spinning || vetoing}
-          >
-            {spinning && !vetoing ? '🎲 Spinning...' : '🎲 Spin the Wheel!'}
-          </button>
+          {tooFew ? (
+            <p className="roulette-min-notice">
+              🍽️ Add at least 2 restaurants to spin the wheel!
+            </p>
+          ) : (
+            <button
+              className="btn btn-spin"
+              onClick={() => doSpin(false)}
+              disabled={spinning || vetoing || tooFew}
+            >
+              {spinning && !vetoing
+                ? '🎡 Spinning…'
+                : vetoing
+                ? '🔄 Re-spinning…'
+                : '🎡 Spin the Wheel!'}
+            </button>
+          )}
 
           <label className="toggle-label">
             <input
@@ -118,10 +198,10 @@ export default function SpinPage({ onSpin }) {
 
       {result && !spinning && (
         <div className="spin-result">
-          <h2 className="result-label">Today's lunch pick is…</h2>
+          <h2 className="result-label">🎉 Today's lunch pick is…</h2>
           <div className="result-card">
             <div className="result-emoji">
-              {SLOT_SYMBOLS[result.restaurant.name.length % SLOT_SYMBOLS.length]}
+              {FOOD_EMOJIS[result.restaurant.name.length % FOOD_EMOJIS.length]}
             </div>
             <div className="result-info">
               <h3 className="result-name">{result.restaurant.name}</h3>
@@ -142,7 +222,7 @@ export default function SpinPage({ onSpin }) {
             onClick={handleVeto}
             disabled={vetoing || spinning}
           >
-            {vetoing ? '🔄 Re-spinning...' : '🚫 Veto — Re-spin!'}
+            {vetoing ? '🔄 Re-spinning…' : '🚫 Veto — Re-spin!'}
           </button>
         </div>
       )}

@@ -1,10 +1,14 @@
 #!/bin/bash
-# Build the React app first
+# Start Express immediately so the port is open right away
+cd server && node server.js &
+SERVER_PID=$!
+
+# Build the React app (server will serve updated files once done)
 echo "Building React app..."
 (cd client && npm run build)
 
 # Watch for React changes and rebuild in background
 (cd client && npx vite build --watch) &
 
-# Start Express (serves built React + API) on port 5000
-cd server && node server.js
+# Wait for the server process
+wait $SERVER_PID
