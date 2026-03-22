@@ -339,19 +339,18 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <circle r={7} fill="#C9A84C" />
         <circle r={4} fill="#F5D76E" />
 
-        {/* Pointer at top */}
-        <polygon
-          points={`0,${-(WHEEL_R + 2)} -8,${-(WHEEL_R + 20)} 8,${-(WHEEL_R + 20)}`}
-          fill="#e53e3e"
-          stroke="#c0392b"
-          strokeWidth="1.5"
-          filter="url(#rw-shadow)"
-        />
-        <line
-          x1="0" y1={-(WHEEL_R + 20)}
-          x2="0" y2={-(WHEEL_R + 4)}
-          stroke="#c0392b" strokeWidth="2"
-        />
+        {/* Ball landing marker — only shown when done, rings the winning spot */}
+        {done && (
+          <circle
+            cx={(BALL_ORBIT_R * Math.cos(ballAngle.current)).toFixed(2)}
+            cy={(BALL_ORBIT_R * Math.sin(ballAngle.current)).toFixed(2)}
+            r={14}
+            fill="none"
+            stroke="#FFD700"
+            strokeWidth="2.5"
+            opacity="0.85"
+          />
+        )}
 
         {/* Ball */}
         <circle

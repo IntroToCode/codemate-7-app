@@ -116,10 +116,16 @@ export default function SpinPage({ onSpin }) {
       }
 
       const idx = pool.findIndex((r) => r.id === data.restaurant.id);
-      const winIdx = idx >= 0 ? idx : 0;
+      if (idx < 0) {
+        setError(`"${data.restaurant.name}" was picked but is not on the wheel. Please spin again.`);
+        setSpinning(false);
+        setVetoing(false);
+        spinInProgress.current = false;
+        return;
+      }
 
       pendingResultRef.current = data;
-      setWinnerIndex(winIdx);
+      setWinnerIndex(idx);
     } catch {
       setError('Network error. Please try again.');
       setSpinning(false);
