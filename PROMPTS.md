@@ -97,3 +97,59 @@ add roulette sound effect.
 **Author:** Alan
 
 ---
+
+### 3/22/2026 — ~4:15 PM
+
+**Prompt:** "Build a restaurant search and add feature that lets users discover and add restaurants by zip code using the Google Places API. [Full feature spec attached including requirements for zip code as central location, search functionality, duplicate handling, Google Places API integration, unit tests, integration tests, and acceptance criteria]"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~4:20 PM
+
+**Prompt:** "It should have a filter that you can select to hide greyed out restaurants, and this filter should be saved in session state for that user. Separately, each page of results should show maybe 20 closest choices, if the user clicks next, then it should display the next 20 closest choice. I'll seek your input for how many restaurant details to retrieve in one call and when to paginate for the next closest decision. The zip code should be stored persistently for that particular user, but user can deselect it and that state will be saved."
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~4:22 PM
+
+**Prompt:** "but what if the user clicks filter out duplicates, would the list look too short, how would you handle that? pretrieve locations first?"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~4:23 PM
+
+**Prompt:** "yes" [Confirming the server-side smart-fill approach to always show 20 non-duplicate results per page]
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~4:25 PM
+
+**Prompt:** "search the places api docs to ensure we are using it right: https://developers.google.com/maps/documentation/places/web-service/op-overview"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~5:07 PM
+
+**Prompt:** "Switch to build mode"
+
+**Author:** Alan
+
+---
+
+### 3/22/2026 — ~5:10 PM
+
+**Prompt:** "Update the prompt Md file with any prompt that's missing from my latest session, add time stamp"
+
+**Author:** Alan
+
+---
