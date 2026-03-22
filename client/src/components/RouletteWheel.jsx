@@ -136,11 +136,15 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
 
         const wi = winnerRef.current;
         if (wi !== null && wi !== undefined) {
+          const stopDuration = 3400;
           const { ballTravel, wheelTravel } = computeStopAngles(
             ballAngle.current,
             wheelAngle.current,
             wi,
-            sa
+            sa,
+            BALL_SPEED,
+            WHEEL_SPEED,
+            stopDuration
           );
           stopData.current = {
             startTime: now,
@@ -148,7 +152,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
             ballTravel,
             wheelStart: wheelAngle.current,
             wheelTravel,
-            duration: 3400,
+            duration: stopDuration,
           };
           phase.current = 'stopping';
         }

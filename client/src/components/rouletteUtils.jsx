@@ -43,18 +43,24 @@ function priceLabel(n) {
   return n ? '$'.repeat(n) : '?';
 }
 
-function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, segmentAngle) {
-  const ballTopNorm = ((-Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI));
-  const curBallNorm = ((ballAngleCurrent % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-  let ballDelta = (ballTopNorm - curBallNorm + 2 * Math.PI) % (2 * Math.PI);
-  if (ballDelta < 0.3) ballDelta += 2 * Math.PI;
-  const ballTravel = 3 * 2 * Math.PI + ballDelta;
+function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, segmentAngle, ballSpeed, wheelSpeed, duration) {
+  const TWO_PI = 2 * Math.PI;
+  const idealBallTravel = ballSpeed * duration / 3;
+  const idealWheelMag = wheelSpeed * duration / 3;
+
+  const ballTopNorm = ((-Math.PI / 2 + TWO_PI) % TWO_PI);
+  const curBallNorm = ((ballAngleCurrent % TWO_PI) + TWO_PI) % TWO_PI;
+  let ballDelta = (ballTopNorm - curBallNorm + TWO_PI) % TWO_PI;
+  if (ballDelta < 0.3) ballDelta += TWO_PI;
+  let ballTravel = ballDelta;
+  while (ballTravel + TWO_PI <= idealBallTravel) ballTravel += TWO_PI;
+  if (ballTravel < TWO_PI) ballTravel += TWO_PI;
 
   const wheelFinal = -((winnerIndex + 0.5) * segmentAngle);
-  let wheelFinalActual = wheelFinal + Math.floor((wheelAngleCurrent - wheelFinal) / (2 * Math.PI)) * (2 * Math.PI);
-  if (wheelFinalActual >= wheelAngleCurrent) wheelFinalActual -= 2 * Math.PI;
-  wheelFinalActual -= 1 * 2 * Math.PI;
-  const wheelTravel = wheelFinalActual - wheelAngleCurrent;
+  let wheelFinalActual = wheelFinal + Math.floor((wheelAngleCurrent - wheelFinal) / TWO_PI) * TWO_PI;
+  if (wheelFinalActual >= wheelAngleCurrent) wheelFinalActual -= TWO_PI;
+  let wheelTravel = wheelFinalActual - wheelAngleCurrent;
+  while (wheelTravel - TWO_PI >= -idealWheelMag) wheelTravel -= TWO_PI;
 
   return { ballTravel, wheelTravel };
 }

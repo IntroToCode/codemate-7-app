@@ -150,36 +150,52 @@ describe('priceLabel', () => {
 
 describe('computeStopAngles', () => {
   const sa = (2 * Math.PI) / 4;
+  const ballSpeed = (2 * Math.PI) / 430;
+  const wheelSpeed = (2 * Math.PI) / 900;
+  const duration = 3400;
 
   test('returns ballTravel and wheelTravel as numbers', () => {
-    const result = computeStopAngles(-Math.PI / 2, 0, 0, sa);
+    const result = computeStopAngles(-Math.PI / 2, 0, 0, sa, ballSpeed, wheelSpeed, duration);
     expect(typeof result.ballTravel).toBe('number');
     expect(typeof result.wheelTravel).toBe('number');
   });
 
   test('ballTravel is positive (ball continues forward)', () => {
-    const result = computeStopAngles(5, -2, 1, sa);
+    const result = computeStopAngles(5, -2, 1, sa, ballSpeed, wheelSpeed, duration);
     expect(result.ballTravel).toBeGreaterThan(0);
   });
 
   test('wheelTravel is negative (wheel continues counter-clockwise)', () => {
-    const result = computeStopAngles(5, -2, 1, sa);
+    const result = computeStopAngles(5, -2, 1, sa, ballSpeed, wheelSpeed, duration);
     expect(result.wheelTravel).toBeLessThan(0);
   });
 
-  test('ball travels at least 3 full rotations', () => {
-    const result = computeStopAngles(3, -1, 2, sa);
-    expect(result.ballTravel).toBeGreaterThanOrEqual(3 * 2 * Math.PI);
+  test('ball travels at least 1 full rotation', () => {
+    const result = computeStopAngles(3, -1, 2, sa, ballSpeed, wheelSpeed, duration);
+    expect(result.ballTravel).toBeGreaterThanOrEqual(2 * Math.PI);
   });
 
-  test('wheel travels at least 1 extra full rotation', () => {
-    const result = computeStopAngles(3, -1, 2, sa);
-    expect(Math.abs(result.wheelTravel)).toBeGreaterThanOrEqual(1 * 2 * Math.PI);
+  test('wheel travel is negative (counter-clockwise deceleration)', () => {
+    const result = computeStopAngles(3, -1, 2, sa, ballSpeed, wheelSpeed, duration);
+    expect(result.wheelTravel).toBeLessThan(0);
+    expect(Math.abs(result.wheelTravel)).toBeGreaterThan(0);
+  });
+
+  test('ball initial stopping velocity does not exceed fast phase speed', () => {
+    const result = computeStopAngles(10, -3, 1, sa, ballSpeed, wheelSpeed, duration);
+    const initialVelocity = result.ballTravel * 3 / duration;
+    expect(initialVelocity).toBeLessThanOrEqual(ballSpeed * 1.05);
+  });
+
+  test('wheel initial stopping velocity does not exceed fast phase speed', () => {
+    const result = computeStopAngles(10, -3, 1, sa, ballSpeed, wheelSpeed, duration);
+    const initialVelocity = Math.abs(result.wheelTravel) * 3 / duration;
+    expect(initialVelocity).toBeLessThanOrEqual(wheelSpeed * 1.05);
   });
 
   test('ball final angle ends at the top (-PI/2 mod 2PI)', () => {
     const ballStart = 10;
-    const result = computeStopAngles(ballStart, -3, 0, sa);
+    const result = computeStopAngles(ballStart, -3, 0, sa, ballSpeed, wheelSpeed, duration);
     const finalAngle = ballStart + result.ballTravel;
     const normalized = ((finalAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
     const topNorm = ((-Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI));
@@ -189,10 +205,11 @@ describe('computeStopAngles', () => {
   test('wheel final rotation aligns winner with top', () => {
     const winnerIndex = 2;
     const wheelStart = -5;
-    const result = computeStopAngles(8, wheelStart, winnerIndex, sa);
+    const result = computeStopAngles(8, wheelStart, winnerIndex, sa, ballSpeed, wheelSpeed, duration);
     const finalWheelAngle = wheelStart + result.wheelTravel;
     const expectedTarget = -((winnerIndex + 0.5) * sa);
-    const diff = ((finalWheelAngle - expectedTarget) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const raw = ((finalWheelAngle - expectedTarget) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const diff = Math.min(raw, 2 * Math.PI - raw);
     expect(diff).toBeCloseTo(0, 5);
   });
 
@@ -200,7 +217,7 @@ describe('computeStopAngles', () => {
     const n = 8;
     const segAngle = (2 * Math.PI) / n;
     for (let wi = 0; wi < n; wi++) {
-      const result = computeStopAngles(12, -4, wi, segAngle);
+      const result = computeStopAngles(12, -4, wi, segAngle, ballSpeed, wheelSpeed, duration);
       expect(result.ballTravel).toBeGreaterThan(0);
       expect(result.wheelTravel).toBeLessThan(0);
     }
