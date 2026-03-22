@@ -18,6 +18,17 @@ async function migrate() {
         END IF;
       END $$;
     `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='restaurants' AND column_name='google_place_id'
+        ) THEN
+          ALTER TABLE restaurants ADD COLUMN google_place_id VARCHAR(255);
+        END IF;
+      END $$;
+    `);
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);

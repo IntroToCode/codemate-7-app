@@ -1,0 +1,51 @@
+# Replit Plan Mode Prompt
+
+## Feature: Restaurant Search & Add via Google Places API
+
+Build a restaurant search and add feature that lets users discover and add restaurants by zip code using the Google Places API.
+
+### Requirements
+
+**Zip Code as Central Location**
+- When a user first adds a restaurant, prompt them to enter a zip code.
+- Use that zip code as the central location point for all subsequent restaurant searches.
+
+**Search Functionality**
+- Entering a zip code should query the Google Places API and return nearby restaurants.
+- Support free-form keyword search (e.g. "italian restaurant", "sushi") that filters results within the selected zip code area.
+- Display results as selectable choices the user can add.
+
+**Duplicate Handling**
+- Cross-reference search results against restaurants already in the list.
+- Grey out any previously added restaurants and label them "(already in list)".
+- Prevent re-adding duplicates.
+
+### Integration
+
+- Use the **Google Places API** for all restaurant search and discovery.
+- The API key is stored in Replit's Secrets manager under the key: `google_place_api_key`.
+- Access it via environment variable — do **not** hardcode the key anywhere.
+
+### Testing
+
+**Unit Tests**
+- Test zip code validation and geocoding logic.
+- Test duplicate detection against existing restaurant list.
+- Test search query construction (zip code only, zip code + keyword).
+- Test that already-added restaurants are correctly flagged in results.
+
+**Integration Tests**
+- Test end-to-end flow: enter zip code → search → select restaurant → add to list.
+- Test Google Places API call and response parsing.
+- Test free-form keyword search returns filtered results within the zip code area.
+- Test that adding a restaurant persists correctly and shows as greyed out on subsequent searches.
+
+### Acceptance Criteria
+- [ ] User is prompted to select a zip code before adding a restaurant
+- [ ] Search returns restaurants near the selected zip code via Google Places API
+- [ ] Free-form text search filters results by keyword within the zip code area
+- [ ] Already-added restaurants are visually greyed out and marked as "(already in list)"
+- [ ] Users can select and add any non-duplicate restaurant from the results
+- [ ] API key is read from Replit Secrets (`google_place_api_key`), never hardcoded
+- [ ] Unit tests pass
+- [ ] Integration tests pass

@@ -2,6 +2,33 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 const { autofill } = require('../lib/autofill');
+const { validateZipCode, searchWithSmartFill } = require('../lib/places');
+
+router.get('/search', async (req, res) => {
+  const { zip, keyword, page_token, hide_duplicates } = req.query;
+  if (!zip || !validateZipCode(zip)) {
+    return res.status(400).json({ error: 'A valid 5-digit US zip code is required.' });
+  }
+  if (!process.env.google_place_api_key) {
+    return res.status(503).json({ error: 'Google Places API is not configured.' });
+  }
+  try {
+    const existing = await pool.query('SELECT name, address, google_place_id FROM restaurants');
+    const hideDupes = hide_duplicates === 'true';
+    const result = await searchWithSmartFill(
+      zip,
+      keyword || '',
+      page_token || null,
+      existing.rows,
+      hideDupes
+    );
+    res.json(result);
+  } catch (err) {
+    console.error('Places search error:', err);
+    const status = err.message.includes('Invalid zip') || err.message.includes('Could not find') ? 400 : 500;
+    res.status(status).json({ error: err.message });
+  }
+});
 
 router.get('/autofill', (req, res) => {
   const { name } = req.query;
@@ -42,16 +69,16 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, cuisine, price_range, address, created_by } = req.body;
+  const { name, cuisine, price_range, address, created_by, google_place_id } = req.body;
   if (!name || !created_by) {
     return res.status(400).json({ error: 'name and created_by are required' });
   }
   try {
     const result = await pool.query(
-      `INSERT INTO restaurants (name, cuisine, price_range, address, created_by)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO restaurants (name, cuisine, price_range, address, created_by, google_place_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, cuisine || null, price_range || null, address || null, created_by]
+      [name, cuisine || null, price_range || null, address || null, created_by, google_place_id || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
