@@ -42,3 +42,7 @@ externalPort = 80
 deploymentTarget = "autoscale"
 run = ["bash", "-c", "cd server && node server.js & cd client && npm run build && npx serve -s dist -l 5000"]
 build = ["bash", "-c", "cd client && npm install && npm run build && cd ../server && npm install"]
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
