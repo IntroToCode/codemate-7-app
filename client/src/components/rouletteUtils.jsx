@@ -53,7 +53,7 @@ function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, seg
   const wheelFinal = -((winnerIndex + 0.5) * segmentAngle);
   let wheelFinalActual = wheelFinal + Math.floor((wheelAngleCurrent - wheelFinal) / (2 * Math.PI)) * (2 * Math.PI);
   if (wheelFinalActual >= wheelAngleCurrent) wheelFinalActual -= 2 * Math.PI;
-  wheelFinalActual -= 2 * 2 * Math.PI;
+  wheelFinalActual -= 1 * 2 * Math.PI;
   const wheelTravel = wheelFinalActual - wheelAngleCurrent;
 
   return { ballTravel, wheelTravel };

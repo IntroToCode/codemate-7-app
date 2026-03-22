@@ -63,7 +63,7 @@ function playWin() {
   } catch {}
 }
 
-const WHEEL_SPEED = (2 * Math.PI) / 2800;
+const WHEEL_SPEED = (2 * Math.PI) / 900;
 const BALL_SPEED = (2 * Math.PI) / 430;
 
 export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete }) {

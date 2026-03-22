@@ -172,9 +172,9 @@ describe('computeStopAngles', () => {
     expect(result.ballTravel).toBeGreaterThanOrEqual(3 * 2 * Math.PI);
   });
 
-  test('wheel travels at least 2 extra full rotations', () => {
+  test('wheel travels at least 1 extra full rotation', () => {
     const result = computeStopAngles(3, -1, 2, sa);
-    expect(Math.abs(result.wheelTravel)).toBeGreaterThanOrEqual(2 * 2 * Math.PI);
+    expect(Math.abs(result.wheelTravel)).toBeGreaterThanOrEqual(1 * 2 * Math.PI);
   });
 
   test('ball final angle ends at the top (-PI/2 mod 2PI)', () => {
