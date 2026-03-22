@@ -3,6 +3,9 @@ const GOOGLE_PLACES_API_KEY = process.env.google_place_api_key;
 const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 const NEARBY_SEARCH_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
 
+const PAGE_SIZE = 20;
+const PAGINATION_DELAY_MS = process.env.NODE_ENV === 'test' ? 0 : 2000;
+
 function validateZipCode(zip) {
   if (!zip || typeof zip !== 'string') return false;
   return /^\d{5}$/.test(zip.trim());
@@ -16,7 +19,7 @@ function buildGeocodingUrl(zipCode) {
   return `${GEOCODE_URL}?${params}`;
 }
 
-function buildNearbySearchUrl(lat, lng, keyword) {
+function buildNearbySearchUrl(lat, lng, keyword, pageToken) {
   const params = new URLSearchParams({
     location: `${lat},${lng}`,
     radius: '8000',
@@ -25,6 +28,9 @@ function buildNearbySearchUrl(lat, lng, keyword) {
   });
   if (keyword && keyword.trim()) {
     params.set('keyword', keyword.trim());
+  }
+  if (pageToken) {
+    params.set('pagetoken', pageToken);
   }
   return `${NEARBY_SEARCH_URL}?${params}`;
 }
@@ -61,25 +67,80 @@ async function geocodeZipCode(zipCode) {
   return { lat: location.lat, lng: location.lng };
 }
 
-async function searchNearbyRestaurants(lat, lng, keyword) {
-  const url = buildNearbySearchUrl(lat, lng, keyword);
+async function searchNearbyRestaurants(lat, lng, keyword, pageToken) {
+  const url = buildNearbySearchUrl(lat, lng, keyword, pageToken);
   const response = await fetch(url);
   const data = await response.json();
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
     throw new Error(`Google Places API error: ${data.status}`);
   }
-  return (data.results || []).map(formatPlaceResult);
+  return {
+    results: (data.results || []).map(formatPlaceResult),
+    nextPageToken: data.next_page_token || null,
+  };
 }
 
-async function searchByZipCode(zipCode, keyword) {
+async function searchByZipCode(zipCode, keyword, pageToken) {
   if (!validateZipCode(zipCode)) {
     throw new Error('Invalid zip code. Please enter a 5-digit US zip code.');
   }
+
+  if (pageToken) {
+    return searchNearbyRestaurants(0, 0, keyword, pageToken);
+  }
+
   const coords = await geocodeZipCode(zipCode);
   if (!coords) {
     throw new Error('Could not find location for the given zip code.');
   }
   return searchNearbyRestaurants(coords.lat, coords.lng, keyword);
+}
+
+async function searchWithSmartFill(zipCode, keyword, pageToken, existingRestaurants, hideDuplicates) {
+  const { flagDuplicates } = require('./duplicates');
+
+  if (!hideDuplicates) {
+    const result = await searchByZipCode(zipCode, keyword, pageToken);
+    const flagged = flagDuplicates(result.results, existingRestaurants);
+    return {
+      results: flagged,
+      nextPageToken: result.nextPageToken,
+    };
+  }
+
+  let collected = [];
+  let currentToken = pageToken;
+  let lastNextToken = null;
+  const MAX_GOOGLE_PAGES = 3;
+  let pagesConsumed = 0;
+
+  while (pagesConsumed < MAX_GOOGLE_PAGES) {
+    const result = await searchByZipCode(zipCode, keyword, currentToken);
+    pagesConsumed++;
+
+    const flagged = flagDuplicates(result.results, existingRestaurants);
+    const nonDupes = flagged.filter((p) => !p.already_added);
+    collected = collected.concat(nonDupes);
+
+    lastNextToken = result.nextPageToken;
+
+    if (collected.length >= PAGE_SIZE || !result.nextPageToken) {
+      break;
+    }
+
+    currentToken = result.nextPageToken;
+
+    await new Promise((resolve) => setTimeout(resolve, PAGINATION_DELAY_MS));
+  }
+
+  const page = collected.slice(0, PAGE_SIZE);
+  const hasMore = collected.length > PAGE_SIZE || !!lastNextToken;
+
+  return {
+    results: page,
+    nextPageToken: hasMore ? lastNextToken : null,
+    _overflow: collected.slice(PAGE_SIZE),
+  };
 }
 
 module.exports = {
@@ -91,4 +152,6 @@ module.exports = {
   geocodeZipCode,
   searchNearbyRestaurants,
   searchByZipCode,
+  searchWithSmartFill,
+  PAGE_SIZE,
 };

@@ -557,3 +557,23 @@ body {
 .result-meta { display: flex; gap: 6px; flex-wrap: wrap; }
 .result-address { font-size: 0.8rem; color: var(--text-muted); }
 .result-add-icon { font-size: 1.2rem; color: var(--orange); font-weight: 700; }
+
+.search-filter-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.hide-dupes-toggle {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.85rem; color: var(--text-muted); cursor: pointer;
+  user-select: none;
+}
+.hide-dupes-toggle input[type="checkbox"] {
+  accent-color: var(--orange); cursor: pointer;
+}
+
+.search-pagination {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; margin-top: 8px;
+}
+.page-indicator {
+  font-size: 0.85rem; color: var(--text-muted);
+}

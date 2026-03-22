@@ -7,6 +7,8 @@ const {
   geocodeZipCode,
   searchNearbyRestaurants,
   searchByZipCode,
+  searchWithSmartFill,
+  PAGE_SIZE,
 } = require('../lib/places');
 
 describe('validateZipCode', () => {
@@ -64,6 +66,16 @@ describe('buildNearbySearchUrl', () => {
   test('trims keyword whitespace', () => {
     const url = buildNearbySearchUrl(40.7128, -74.006, '  pizza  ');
     expect(url).toContain('keyword=pizza');
+  });
+
+  test('includes pagetoken when provided', () => {
+    const url = buildNearbySearchUrl(40.7128, -74.006, '', 'abc123token');
+    expect(url).toContain('pagetoken=abc123token');
+  });
+
+  test('does not include pagetoken when not provided', () => {
+    const url = buildNearbySearchUrl(40.7128, -74.006, '');
+    expect(url).not.toContain('pagetoken');
   });
 });
 
@@ -163,27 +175,30 @@ describe('searchNearbyRestaurants', () => {
     global.fetch = originalFetch;
   });
 
-  test('returns formatted results on success', async () => {
+  test('returns formatted results with nextPageToken on success', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       json: () => Promise.resolve({
         status: 'OK',
         results: [
           { place_id: 'ChIJ1', name: 'Pizza Place', vicinity: '1 Main St', types: ['restaurant', 'food'], price_level: 1, rating: 4.2 },
         ],
+        next_page_token: 'token_abc',
       }),
     });
-    const results = await searchNearbyRestaurants(40.7, -74.0, '');
-    expect(results).toHaveLength(1);
-    expect(results[0].place_id).toBe('ChIJ1');
-    expect(results[0].name).toBe('Pizza Place');
+    const result = await searchNearbyRestaurants(40.7, -74.0, '');
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0].place_id).toBe('ChIJ1');
+    expect(result.results[0].name).toBe('Pizza Place');
+    expect(result.nextPageToken).toBe('token_abc');
   });
 
-  test('returns empty array on ZERO_RESULTS', async () => {
+  test('returns empty results on ZERO_RESULTS', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       json: () => Promise.resolve({ status: 'ZERO_RESULTS', results: [] }),
     });
-    const results = await searchNearbyRestaurants(40.7, -74.0, 'xyz');
-    expect(results).toEqual([]);
+    const result = await searchNearbyRestaurants(40.7, -74.0, 'xyz');
+    expect(result.results).toEqual([]);
+    expect(result.nextPageToken).toBeNull();
   });
 
   test('throws on error status', async () => {
@@ -226,7 +241,151 @@ describe('searchByZipCode', () => {
           results: [{ place_id: 'ChIJ1', name: 'Test', vicinity: '1 Main', types: ['restaurant'] }],
         }),
       });
-    const results = await searchByZipCode('10001', '');
-    expect(results).toHaveLength(1);
+    const result = await searchByZipCode('10001', '');
+    expect(result.results).toHaveLength(1);
+  });
+});
+
+describe('searchWithSmartFill', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function makePlaces(count, prefix = 'Place') {
+    return Array.from({ length: count }, (_, i) => ({
+      place_id: `ChIJ_${prefix}_${i}`,
+      name: `${prefix} ${i}`,
+      vicinity: `${i} Main St`,
+      types: ['restaurant'],
+      price_level: 2,
+      rating: 4.0,
+    }));
+  }
+
+  function mockGeoAndSearch(...pages) {
+    const mocks = [
+      jest.fn().mockResolvedValue({
+        json: () => Promise.resolve({
+          status: 'OK',
+          results: [{ geometry: { location: { lat: 40.7, lng: -74.0 } } }],
+        }),
+      }),
+    ];
+
+    for (const page of pages) {
+      mocks.push(
+        jest.fn().mockResolvedValue({
+          json: () => Promise.resolve({
+            status: 'OK',
+            results: page.results,
+            next_page_token: page.nextToken || undefined,
+          }),
+        })
+      );
+    }
+
+    let callIdx = 0;
+    global.fetch = jest.fn((...args) => {
+      const mock = mocks[Math.min(callIdx, mocks.length - 1)];
+      callIdx++;
+      return mock(...args);
+    });
+  }
+
+  test('without hide_duplicates, returns all results with flags', async () => {
+    const places = makePlaces(5);
+    mockGeoAndSearch({ results: places, nextToken: null });
+
+    const existing = [{ name: 'Place 0', address: '0 Main St', google_place_id: 'ChIJ_Place_0' }];
+    const result = await searchWithSmartFill('10001', '', null, existing, false);
+
+    expect(result.results).toHaveLength(5);
+    expect(result.results[0].already_added).toBe(true);
+    expect(result.results[1].already_added).toBe(false);
+  });
+
+  test('with hide_duplicates, filters out duplicates', async () => {
+    const places = makePlaces(5);
+    mockGeoAndSearch({ results: places, nextToken: null });
+
+    const existing = [
+      { name: 'Place 0', address: '0 Main St', google_place_id: 'ChIJ_Place_0' },
+      { name: 'Place 1', address: '1 Main St', google_place_id: 'ChIJ_Place_1' },
+    ];
+    const result = await searchWithSmartFill('10001', '', null, existing, true);
+
+    expect(result.results).toHaveLength(3);
+    expect(result.results.every((r) => !r.already_added)).toBe(true);
+  });
+
+  test('smart-fill fetches additional pages when duplicates reduce count below PAGE_SIZE', async () => {
+    const page1 = makePlaces(20, 'P1');
+    const page2 = makePlaces(10, 'P2');
+
+    mockGeoAndSearch(
+      { results: page1, nextToken: 'token_page2' },
+      { results: page2, nextToken: null }
+    );
+
+    const existing = page1.map((p) => ({
+      name: p.name,
+      address: p.vicinity,
+      google_place_id: p.place_id,
+    }));
+    const result = await searchWithSmartFill('10001', '', null, existing, true);
+
+    expect(result.results).toHaveLength(10);
+    expect(result.results.every((r) => r.name.startsWith('P2'))).toBe(true);
+    expect(result.nextPageToken).toBeNull();
+  });
+
+  test('returns nextPageToken when more results may exist', async () => {
+    const places = makePlaces(20);
+    mockGeoAndSearch({ results: places, nextToken: 'more_token' });
+
+    const result = await searchWithSmartFill('10001', '', null, [], false);
+
+    expect(result.results).toHaveLength(20);
+    expect(result.nextPageToken).toBe('more_token');
+  });
+
+  test('caps at MAX_GOOGLE_PAGES (3) even if still short', async () => {
+    const page1 = makePlaces(20, 'A');
+    const page2 = makePlaces(20, 'B');
+    const page3 = makePlaces(20, 'C');
+
+    mockGeoAndSearch(
+      { results: page1, nextToken: 'tok2' },
+      { results: page2, nextToken: 'tok3' },
+      { results: page3, nextToken: 'tok4' }
+    );
+
+    const allExisting = [...page1, ...page2, ...page3].map((p) => ({
+      name: p.name,
+      address: p.vicinity,
+      google_place_id: p.place_id,
+    }));
+
+    const result = await searchWithSmartFill('10001', '', null, allExisting, true);
+    expect(result.results).toHaveLength(0);
+  });
+
+  test('overflow items indicate hasMore via nextPageToken', async () => {
+    const places = makePlaces(20);
+    mockGeoAndSearch(
+      { results: places.slice(0, 10), nextToken: 'tok2' },
+      { results: places.slice(10), nextToken: 'tok3' }
+    );
+
+    const existing = places.slice(0, 5).map((p) => ({
+      name: p.name,
+      address: p.vicinity,
+      google_place_id: p.place_id,
+    }));
+
+    const result = await searchWithSmartFill('10001', '', null, existing, true);
+    expect(result.results.length).toBeLessThanOrEqual(PAGE_SIZE);
   });
 });

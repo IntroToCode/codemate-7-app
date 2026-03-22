@@ -1,24 +1,60 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+
+const ZIP_STORAGE_KEY = 'lr_search_zipcode';
+const HIDE_DUPES_STORAGE_KEY = 'lr_hide_duplicates';
+
+function getSavedZip() {
+  return localStorage.getItem(ZIP_STORAGE_KEY) || '';
+}
+
+function saveZip(zip) {
+  if (zip) {
+    localStorage.setItem(ZIP_STORAGE_KEY, zip);
+  } else {
+    localStorage.removeItem(ZIP_STORAGE_KEY);
+  }
+}
+
+function getSavedHideDupes() {
+  return localStorage.getItem(HIDE_DUPES_STORAGE_KEY) === 'true';
+}
+
+function saveHideDupes(val) {
+  localStorage.setItem(HIDE_DUPES_STORAGE_KEY, String(val));
+}
 
 function priceLabel(n) {
   return n ? '$'.repeat(n) : '—';
 }
 
 export default function RestaurantSearch({ onSelect, onClose }) {
-  const [step, setStep] = useState('zip');
-  const [zipCode, setZipCode] = useState('');
+  const savedZip = getSavedZip();
+  const [step, setStep] = useState(savedZip ? 'results' : 'zip');
+  const [zipCode, setZipCode] = useState(savedZip);
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hideDuplicates, setHideDuplicates] = useState(getSavedHideDupes());
+  const [nextPageToken, setNextPageToken] = useState(null);
+  const [pageHistory, setPageHistory] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const searchTimer = useRef(null);
 
-  async function searchPlaces(zip, kw) {
+  useEffect(() => {
+    if (savedZip && step === 'results') {
+      searchPlaces(savedZip, '', null, hideDuplicates);
+    }
+  }, []);
+
+  async function searchPlaces(zip, kw, pageToken, hideDupes) {
     setLoading(true);
     setError('');
     try {
       const params = new URLSearchParams({ zip });
       if (kw && kw.trim()) params.set('keyword', kw.trim());
+      if (pageToken) params.set('page_token', pageToken);
+      if (hideDupes) params.set('hide_duplicates', 'true');
       const res = await fetch(`/api/restaurants/search?${params}`);
       const data = await res.json();
       if (!res.ok) {
@@ -26,7 +62,8 @@ export default function RestaurantSearch({ onSelect, onClose }) {
         setResults([]);
         return;
       }
-      setResults(data);
+      setResults(data.results || []);
+      setNextPageToken(data.nextPageToken || null);
     } catch {
       setError('Failed to search restaurants. Please try again.');
       setResults([]);
@@ -37,12 +74,16 @@ export default function RestaurantSearch({ onSelect, onClose }) {
 
   function handleZipSubmit(e) {
     e.preventDefault();
-    if (!/^\d{5}$/.test(zipCode.trim())) {
+    const zip = zipCode.trim();
+    if (!/^\d{5}$/.test(zip)) {
       setError('Please enter a valid 5-digit zip code.');
       return;
     }
+    saveZip(zip);
     setStep('results');
-    searchPlaces(zipCode.trim(), '');
+    setPageHistory([]);
+    setCurrentPage(0);
+    searchPlaces(zip, '', null, hideDuplicates);
   }
 
   function handleKeywordChange(e) {
@@ -50,8 +91,52 @@ export default function RestaurantSearch({ onSelect, onClose }) {
     setKeyword(value);
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
-      searchPlaces(zipCode.trim(), value);
+      setPageHistory([]);
+      setCurrentPage(0);
+      searchPlaces(zipCode.trim(), value, null, hideDuplicates);
     }, 500);
+  }
+
+  function handleNextPage() {
+    if (!nextPageToken) return;
+    setPageHistory((prev) => [...prev, { results, nextPageToken }]);
+    setCurrentPage((p) => p + 1);
+    searchPlaces(zipCode.trim(), keyword, nextPageToken, hideDuplicates);
+  }
+
+  function handlePrevPage() {
+    if (pageHistory.length === 0) return;
+    const prev = [...pageHistory];
+    const lastPage = prev.pop();
+    setPageHistory(prev);
+    setCurrentPage((p) => p - 1);
+    setResults(lastPage.results);
+    setNextPageToken(lastPage.nextPageToken);
+  }
+
+  function handleToggleHideDuplicates() {
+    const newVal = !hideDuplicates;
+    setHideDuplicates(newVal);
+    saveHideDupes(newVal);
+    setPageHistory([]);
+    setCurrentPage(0);
+    searchPlaces(zipCode.trim(), keyword, null, newVal);
+  }
+
+  function handleChangeZip() {
+    setStep('zip');
+    setResults([]);
+    setKeyword('');
+    setError('');
+    setPageHistory([]);
+    setCurrentPage(0);
+    setNextPageToken(null);
+  }
+
+  function handleClearZip() {
+    saveZip('');
+    setZipCode('');
+    handleChangeZip();
   }
 
   function handleSelect(place) {
@@ -107,15 +192,28 @@ export default function RestaurantSearch({ onSelect, onClose }) {
             />
             <button
               className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setStep('zip');
-                setResults([]);
-                setKeyword('');
-                setError('');
-              }}
+              onClick={handleChangeZip}
             >
               Change zip
             </button>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={handleClearZip}
+              title="Clear saved zip code"
+            >
+              Clear zip
+            </button>
+          </div>
+
+          <div className="search-filter-row">
+            <label className="hide-dupes-toggle">
+              <input
+                type="checkbox"
+                checked={hideDuplicates}
+                onChange={handleToggleHideDuplicates}
+              />
+              Hide already added
+            </label>
           </div>
 
           {error && <p className="search-error">{error}</p>}
@@ -149,6 +247,26 @@ export default function RestaurantSearch({ onSelect, onClose }) {
               </div>
             ))}
           </div>
+
+          {!loading && results.length > 0 && (
+            <div className="search-pagination">
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handlePrevPage}
+                disabled={currentPage === 0}
+              >
+                ← Previous
+              </button>
+              <span className="page-indicator">Page {currentPage + 1}</span>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleNextPage}
+                disabled={!nextPageToken}
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 const { autofill } = require('../lib/autofill');
-const { searchByZipCode, validateZipCode } = require('../lib/places');
-const { flagDuplicates } = require('../lib/duplicates');
+const { validateZipCode, searchWithSmartFill } = require('../lib/places');
 
 router.get('/search', async (req, res) => {
-  const { zip, keyword } = req.query;
+  const { zip, keyword, page_token, hide_duplicates } = req.query;
   if (!zip || !validateZipCode(zip)) {
     return res.status(400).json({ error: 'A valid 5-digit US zip code is required.' });
   }
@@ -14,10 +13,16 @@ router.get('/search', async (req, res) => {
     return res.status(503).json({ error: 'Google Places API is not configured.' });
   }
   try {
-    const places = await searchByZipCode(zip, keyword || '');
     const existing = await pool.query('SELECT name, address, google_place_id FROM restaurants');
-    const results = flagDuplicates(places, existing.rows);
-    res.json(results);
+    const hideDupes = hide_duplicates === 'true';
+    const result = await searchWithSmartFill(
+      zip,
+      keyword || '',
+      page_token || null,
+      existing.rows,
+      hideDupes
+    );
+    res.json(result);
   } catch (err) {
     console.error('Places search error:', err);
     const status = err.message.includes('Invalid zip') || err.message.includes('Could not find') ? 400 : 500;

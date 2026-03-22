@@ -10,11 +10,11 @@ jest.mock('../db/migrate', () => jest.fn().mockResolvedValue());
 
 jest.mock('../lib/places', () => ({
   validateZipCode: jest.fn((zip) => /^\d{5}$/.test((zip || '').trim())),
-  searchByZipCode: jest.fn(),
+  searchWithSmartFill: jest.fn(),
 }));
 
 const app = require('../server');
-const { searchByZipCode } = require('../lib/places');
+const { searchWithSmartFill } = require('../lib/places');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -33,33 +33,46 @@ describe('GET /api/restaurants/search', () => {
     expect(res.status).toBe(400);
   });
 
-  test('returns search results with duplicate flags', async () => {
+  test('returns search results with duplicate flags and pagination', async () => {
     const places = [
-      { place_id: 'ChIJ_1', name: 'Test Place', address: '123 Main St', cuisine: 'Italian', price_range: 2, rating: 4.0 },
-      { place_id: 'ChIJ_2', name: 'Existing Place', address: '456 Oak Ave', cuisine: 'Mexican', price_range: 1, rating: 3.5 },
+      { place_id: 'ChIJ_1', name: 'Test Place', address: '123 Main St', cuisine: 'Italian', price_range: 2, rating: 4.0, already_added: false },
+      { place_id: 'ChIJ_2', name: 'Existing Place', address: '456 Oak Ave', cuisine: 'Mexican', price_range: 1, rating: 3.5, already_added: true },
     ];
-    searchByZipCode.mockResolvedValueOnce(places);
+    searchWithSmartFill.mockResolvedValueOnce({
+      results: places,
+      nextPageToken: 'token123',
+    });
     mockPool.query.mockResolvedValueOnce({
       rows: [{ name: 'Existing Place', address: '456 Oak Ave', google_place_id: 'ChIJ_2' }],
     });
 
     const res = await request(app).get('/api/restaurants/search?zip=10001');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].already_added).toBe(false);
-    expect(res.body[1].already_added).toBe(true);
+    expect(res.body.results).toHaveLength(2);
+    expect(res.body.results[0].already_added).toBe(false);
+    expect(res.body.results[1].already_added).toBe(true);
+    expect(res.body.nextPageToken).toBe('token123');
   });
 
-  test('passes keyword to search', async () => {
-    searchByZipCode.mockResolvedValueOnce([]);
+  test('passes keyword and page_token to search', async () => {
+    searchWithSmartFill.mockResolvedValueOnce({ results: [], nextPageToken: null });
     mockPool.query.mockResolvedValueOnce({ rows: [] });
 
-    await request(app).get('/api/restaurants/search?zip=10001&keyword=sushi');
-    expect(searchByZipCode).toHaveBeenCalledWith('10001', 'sushi');
+    await request(app).get('/api/restaurants/search?zip=10001&keyword=sushi&page_token=abc123');
+    expect(searchWithSmartFill).toHaveBeenCalledWith('10001', 'sushi', 'abc123', [], false);
+  });
+
+  test('passes hide_duplicates flag to search', async () => {
+    searchWithSmartFill.mockResolvedValueOnce({ results: [], nextPageToken: null });
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+    await request(app).get('/api/restaurants/search?zip=10001&hide_duplicates=true');
+    expect(searchWithSmartFill).toHaveBeenCalledWith('10001', '', null, [], true);
   });
 
   test('returns 500 on API error', async () => {
-    searchByZipCode.mockRejectedValueOnce(new Error('Google Places API error: REQUEST_DENIED'));
+    searchWithSmartFill.mockRejectedValueOnce(new Error('Google Places API error: REQUEST_DENIED'));
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app).get('/api/restaurants/search?zip=10001');
     expect(res.status).toBe(500);

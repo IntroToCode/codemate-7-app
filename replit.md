@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (server: 88 tests, client: 45 tests)
+- **Testing**: Jest + Supertest (server: 100 tests, client: 69 tests)
 
 ## Project Structure
 ```
@@ -85,7 +85,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | PATCH | /api/restaurants/:id/toggle | Toggle active status |
 | DELETE | /api/restaurants/:id | Delete restaurant |
 | GET | /api/restaurants/autofill?name= | Mock autofill by name |
-| GET | /api/restaurants/search?zip=&keyword= | Google Places nearby search |
+| GET | /api/restaurants/search?zip=&keyword=&page_token=&hide_duplicates= | Google Places search with pagination + smart fill |
 | GET | /api/spins | Spin history |
 | POST | /api/spins | Spin (with exclusion logic) |
 | POST | /api/spins/:id/veto | Veto + re-spin |
@@ -95,8 +95,8 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 
 ## Running Tests
 ```bash
-cd server && npm test    # 88 server-side tests
-cd client && npm test    # 45 client-side tests
+cd server && npm test    # 100 server-side tests
+cd client && npm test    # 69 client-side tests
 ```
 
 ## Environment Variables
@@ -109,7 +109,7 @@ cd client && npm test    # 45 client-side tests
 - **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
-- **Google Places search**: Users can search by zip code + optional keyword. Duplicates detected by google_place_id or normalized name+address match.
+- **Google Places search**: Users can search by zip code + optional keyword. Paginated 20 results at a time with Next/Previous controls. "Hide already added" toggle filters out duplicates with smart page-fill (auto-fetches more from Google to fill 20 non-duplicate results). Zip code and hide-duplicates preference persisted in localStorage. Duplicates detected by google_place_id or normalized name+address match.
 - **Ratings**: Upsert pattern — one rating per user per restaurant, updates in place.
 
 ## Prompting rules
