@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (53 tests: unit + integration)
+- **Testing**: Jest + Supertest (server: 27 tests, client: 45 tests)
 
 ## Project Structure
 ```
@@ -22,7 +22,8 @@ client/
       Layout.jsx         - App shell (header, nav, sidebar)
       RecentHits.jsx     - Sidebar: last 5 non-vetoed spins
       StarRating.jsx     - Interactive/read-only star rating component
-      RouletteWheel.jsx  - Casino SVG roulette wheel with ball animation + Web Audio sounds
+      RouletteWheel.jsx  - Casino SVG roulette wheel with spinning base + ball animation + Web Audio sounds
+      rouletteUtils.jsx  - Shared utility functions (segment paths, clamp, shuffle, stop angle math)
     pages/
       SpinPage.jsx       - Casino roulette wheel with animated ball + veto
       RestaurantList.jsx - Add/edit/delete restaurants, tags, ratings
@@ -52,6 +53,13 @@ server/
     ratingAvg.test.js    - Unit tests for rating average calculation
     api.test.js          - Integration tests for all REST endpoints
 
+client/
+  src/__tests__/
+    rouletteUtils.test.js   - Unit tests for wheel utility functions (33 tests)
+    RouletteWheel.test.jsx  - Component rendering tests (12 tests)
+  jest.config.cjs           - Jest config for client (jsdom environment)
+  babel.config.cjs          - Babel config for Jest transforms
+
 start.sh                 - Startup: builds React, starts Express, watches for changes
 ```
 
@@ -80,9 +88,8 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 
 ## Running Tests
 ```bash
-cd server && npm test
-# or from root:
-npm test
+cd server && npm test    # 27 server-side tests
+cd client && npm test    # 45 client-side tests
 ```
 
 ## Environment Variables

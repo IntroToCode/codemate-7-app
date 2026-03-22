@@ -1,21 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-
-const CASINO_COLORS = [
-  '#b71c1c',
-  '#1a1a2e',
-  '#1b5e20',
-  '#4a148c',
-  '#bf360c',
-  '#0d47a1',
-  '#b71c1c',
-  '#1a1a2e',
-];
-
-const WHEEL_R = 168;
-const BALL_ORBIT_R = 190;
-const OUTER_RING_R = 207;
-const HUB_R = 28;
-const SVG_SIZE = 218;
+import {
+  WHEEL_R,
+  BALL_ORBIT_R,
+  OUTER_RING_R,
+  HUB_R,
+  SVG_SIZE,
+  CASINO_COLORS,
+  buildSegPath,
+  clamp,
+  computeStopAngles,
+} from './rouletteUtils.jsx';
 
 let _audioCtx = null;
 function getAudio() {
@@ -69,26 +63,16 @@ function playWin() {
   } catch {}
 }
 
-function buildSegPath(i, n) {
-  const sa = (2 * Math.PI) / n;
-  const a0 = -Math.PI / 2 + i * sa;
-  const a1 = a0 + sa;
-  const x1 = (WHEEL_R * Math.cos(a0)).toFixed(3);
-  const y1 = (WHEEL_R * Math.sin(a0)).toFixed(3);
-  const x2 = (WHEEL_R * Math.cos(a1)).toFixed(3);
-  const y2 = (WHEEL_R * Math.sin(a1)).toFixed(3);
-  return `M 0 0 L ${x1} ${y1} A ${WHEEL_R} ${WHEEL_R} 0 ${sa > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z`;
-}
-
-function clamp(str, max) {
-  return str.length > max ? str.slice(0, max - 1) + '…' : str;
-}
+const WHEEL_SPEED = (2 * Math.PI) / 2800;
+const BALL_SPEED = (2 * Math.PI) / 430;
 
 export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete }) {
   const ballRef = useRef(null);
   const ballShineRef = useRef(null);
+  const wheelGroupRef = useRef(null);
   const rafRef = useRef(null);
   const ballAngle = useRef(-Math.PI / 2);
+  const wheelAngle = useRef(0);
   const phase = useRef('idle');
   const fastStart = useRef(null);
   const stopData = useRef(null);
@@ -130,6 +114,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     stopData.current = null;
     lastTick.current = 0;
     winnerRef.current = null;
+    wheelAngle.current = 0;
 
     function tick(now) {
       const isFast = phase.current === 'fast';
@@ -145,30 +130,37 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
 
       if (phase.current === 'fast') {
         const elapsed = now - fastStart.current;
-        ballAngle.current = -Math.PI / 2 + (elapsed / 430) * (2 * Math.PI);
+        ballAngle.current = -Math.PI / 2 + elapsed * BALL_SPEED;
+        wheelAngle.current = -(elapsed * WHEEL_SPEED);
         moveBall();
+        moveWheel();
 
         const wi = winnerRef.current;
         if (wi !== null && wi !== undefined) {
-          const targetAngle = -Math.PI / 2 + (wi + 0.5) * sa;
-          const curPos = ((ballAngle.current % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-          const tgtPos = ((targetAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-          let delta = (tgtPos - curPos + 2 * Math.PI) % (2 * Math.PI);
-          if (delta < 0.15) delta += 2 * Math.PI;
+          const { ballTravel, wheelTravel } = computeStopAngles(
+            ballAngle.current,
+            wheelAngle.current,
+            wi,
+            sa
+          );
           stopData.current = {
             startTime: now,
-            startAngle: ballAngle.current,
-            totalTravel: 3 * 2 * Math.PI + delta,
+            ballStart: ballAngle.current,
+            ballTravel,
+            wheelStart: wheelAngle.current,
+            wheelTravel,
             duration: 3400,
           };
           phase.current = 'stopping';
         }
       } else if (phase.current === 'stopping') {
-        const { startTime, startAngle, totalTravel, duration } = stopData.current;
+        const { startTime, ballStart, ballTravel, wheelStart, wheelTravel, duration } = stopData.current;
         const t = Math.min((now - startTime) / duration, 1);
         const eased = 1 - Math.pow(1 - t, 3);
-        ballAngle.current = startAngle + totalTravel * eased;
+        ballAngle.current = ballStart + ballTravel * eased;
+        wheelAngle.current = wheelStart + wheelTravel * eased;
         moveBall();
+        moveWheel();
 
         if (t >= 1) {
           phase.current = 'done';
@@ -199,6 +191,13 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     if (ballShineRef.current) {
       ballShineRef.current.setAttribute('cx', (BALL_ORBIT_R * Math.cos(a) - 3).toFixed(2));
       ballShineRef.current.setAttribute('cy', (BALL_ORBIT_R * Math.sin(a) - 3).toFixed(2));
+    }
+  }
+
+  function moveWheel() {
+    if (wheelGroupRef.current) {
+      const deg = (wheelAngle.current * 180 / Math.PI).toFixed(2);
+      wheelGroupRef.current.setAttribute('transform', `rotate(${deg})`);
     }
   }
 
@@ -275,62 +274,65 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <circle r={WHEEL_R + 21} fill="none" stroke="rgba(255,215,0,0.15)" strokeWidth="1" />
         <circle r={WHEEL_R + 1} fill="none" stroke="rgba(255,215,0,0.12)" strokeWidth="1" />
 
-        {/* Wheel segments */}
-        {restaurants.map((r, i) => {
-          const midA = -Math.PI / 2 + (i + 0.5) * sa;
-          const tx = (textR * Math.cos(midA)).toFixed(2);
-          const ty = (textR * Math.sin(midA)).toFixed(2);
-          const deg = ((midA * 180) / Math.PI + 90).toFixed(1);
-          const color = CASINO_COLORS[i % CASINO_COLORS.length];
-          const isWinner = done && winnerIndex === i;
+        {/* Rotating wheel group: segments + dividers + rim */}
+        <g ref={wheelGroupRef}>
+          {/* Wheel segments */}
+          {restaurants.map((r, i) => {
+            const midA = -Math.PI / 2 + (i + 0.5) * sa;
+            const tx = (textR * Math.cos(midA)).toFixed(2);
+            const ty = (textR * Math.sin(midA)).toFixed(2);
+            const deg = ((midA * 180) / Math.PI + 90).toFixed(1);
+            const color = CASINO_COLORS[i % CASINO_COLORS.length];
+            const isWinner = done && winnerIndex === i;
 
-          return (
-            <g
-              key={`seg-${i}-${r.id || i}`}
-              className={`rw-seg${entering ? ' rw-seg-enter' : ''}${isWinner ? ' rw-seg-win' : ''}`}
-              style={entering ? { animationDelay: `${i * 0.09}s` } : undefined}
-            >
-              <path
-                d={buildSegPath(i, n)}
-                fill={isWinner ? '#C9A84C' : color}
-                stroke="#111"
-                strokeWidth="2"
-              />
-              <text
-                x={tx}
-                y={ty}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fill={isWinner ? '#1a1a1a' : 'white'}
-                fontSize={fontSize}
-                fontWeight="700"
-                fontFamily="'Segoe UI', system-ui, sans-serif"
-                letterSpacing="0.01em"
-                transform={`rotate(${deg},${tx},${ty})`}
-                filter="url(#rw-text)"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
+            return (
+              <g
+                key={`seg-${i}-${r.id || i}`}
+                className={`rw-seg${entering ? ' rw-seg-enter' : ''}${isWinner ? ' rw-seg-win' : ''}`}
+                style={entering ? { animationDelay: `${i * 0.09}s` } : undefined}
               >
-                {clamp(r.name, maxLen)}
-              </text>
-            </g>
-          );
-        })}
+                <path
+                  d={buildSegPath(i, n)}
+                  fill={isWinner ? '#C9A84C' : color}
+                  stroke="#111"
+                  strokeWidth="2"
+                />
+                <text
+                  x={tx}
+                  y={ty}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={isWinner ? '#1a1a1a' : 'white'}
+                  fontSize={fontSize}
+                  fontWeight="700"
+                  fontFamily="'Segoe UI', system-ui, sans-serif"
+                  letterSpacing="0.01em"
+                  transform={`rotate(${deg},${tx},${ty})`}
+                  filter="url(#rw-text)"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {clamp(r.name, maxLen)}
+                </text>
+              </g>
+            );
+          })}
 
-        {/* Segment divider lines */}
-        {restaurants.map((_, i) => {
-          const a = -Math.PI / 2 + i * sa;
-          const x = (WHEEL_R * Math.cos(a)).toFixed(2);
-          const y = (WHEEL_R * Math.sin(a)).toFixed(2);
-          return (
-            <line key={`dl-${i}`} x1="0" y1="0" x2={x} y2={y}
-              stroke="#111" strokeWidth="2.5" />
-          );
-        })}
+          {/* Segment divider lines */}
+          {restaurants.map((_, i) => {
+            const a = -Math.PI / 2 + i * sa;
+            const x = (WHEEL_R * Math.cos(a)).toFixed(2);
+            const y = (WHEEL_R * Math.sin(a)).toFixed(2);
+            return (
+              <line key={`dl-${i}`} x1="0" y1="0" x2={x} y2={y}
+                stroke="#111" strokeWidth="2.5" />
+            );
+          })}
 
-        {/* Wheel rim */}
-        <circle r={WHEEL_R} fill="none" stroke="#2a1a00" strokeWidth="3" />
+          {/* Wheel rim */}
+          <circle r={WHEEL_R} fill="none" stroke="#2a1a00" strokeWidth="3" />
+        </g>
 
-        {/* Center hub layers */}
+        {/* Center hub layers (fixed, radially symmetric) */}
         <circle r={HUB_R + 7} fill="#0f0700" />
         <circle r={HUB_R + 4} fill="#8B6914" />
         <circle r={HUB_R} fill="url(#rw-hub)" />
@@ -339,11 +341,20 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <circle r={7} fill="#C9A84C" />
         <circle r={4} fill="#F5D76E" />
 
-        {/* Ball landing marker — only shown when done, rings the winning spot */}
+        {/* Fixed pointer at top */}
+        <polygon
+          points={`0,${-(WHEEL_R + 2)} -8,${-(WHEEL_R + 20)} 8,${-(WHEEL_R + 20)}`}
+          fill="#e53e3e"
+          stroke="#c0392b"
+          strokeWidth="1.5"
+          filter="url(#rw-shadow)"
+        />
+
+        {/* Ball landing marker — only shown when done */}
         {done && (
           <circle
-            cx={(BALL_ORBIT_R * Math.cos(ballAngle.current)).toFixed(2)}
-            cy={(BALL_ORBIT_R * Math.sin(ballAngle.current)).toFixed(2)}
+            cx={0}
+            cy={-BALL_ORBIT_R}
             r={14}
             fill="none"
             stroke="#FFD700"

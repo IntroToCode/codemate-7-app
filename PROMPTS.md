@@ -34,4 +34,10 @@ add roulette sound effect.
 
 ---
 
+### 3/22/2026
 
+**Prompt:** "Also the roullette base should also spin as is in while the ball is spinning as in real casino.. Make sure this has unit test as part of the unit test suite using Jest"
+
+**Author:** Alan
+
+---
