@@ -14,9 +14,11 @@ export default function RestaurantList() {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
+  const [showManualAdd, setShowManualAdd] = useState(false);
   const [editId, setEditId] = useState(null);
   const [newTag, setNewTag] = useState({});
   const [form, setForm] = useState({ name: '', cuisine: '', price_range: '', address: '' });
+  const [addForm, setAddForm] = useState({ name: '', cuisine: '', price_range: '', address: '' });
 
   async function load() {
     setLoading(true);
@@ -44,6 +46,22 @@ export default function RestaurantList() {
       }),
     });
     setShowSearch(false);
+    load();
+  }
+
+  async function handleManualAdd(e) {
+    e.preventDefault();
+    if (!addForm.name.trim()) return;
+    await fetch('/api/restaurants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...addForm,
+        created_by: userName,
+      }),
+    });
+    setAddForm({ name: '', cuisine: '', price_range: '', address: '' });
+    setShowManualAdd(false);
     load();
   }
 
@@ -105,9 +123,14 @@ export default function RestaurantList() {
     <div className="restaurant-list-page">
       <div className="page-header">
         <h2>🗂️ Restaurants</h2>
-        <button className="btn btn-primary" onClick={() => setShowSearch(!showSearch)}>
-          {showSearch ? '✕ Cancel' : '＋ Add Restaurant'}
-        </button>
+        <div className="header-actions">
+          <button className="btn btn-primary" onClick={() => { setShowSearch(!showSearch); setShowManualAdd(false); }}>
+            {showSearch ? '✕ Cancel Search' : '🔍 Search & Add'}
+          </button>
+          <button className="btn btn-secondary" onClick={() => { setShowManualAdd(!showManualAdd); setShowSearch(false); }}>
+            {showManualAdd ? '✕ Cancel' : '✏️ Add Manually'}
+          </button>
+        </div>
       </div>
 
       {showSearch && (
@@ -115,6 +138,46 @@ export default function RestaurantList() {
           onSelect={handleSearchSelect}
           onClose={() => setShowSearch(false)}
         />
+      )}
+
+      {showManualAdd && (
+        <form className="manual-add-form card" onSubmit={handleManualAdd}>
+          <h3>Add Restaurant Manually</h3>
+          <input
+            className="form-input"
+            placeholder="Restaurant name *"
+            value={addForm.name}
+            onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+            required
+          />
+          <input
+            className="form-input"
+            placeholder="Cuisine (e.g. Italian, Thai)"
+            value={addForm.cuisine}
+            onChange={(e) => setAddForm((f) => ({ ...f, cuisine: e.target.value }))}
+          />
+          <select
+            className="form-input"
+            value={addForm.price_range}
+            onChange={(e) => setAddForm((f) => ({ ...f, price_range: e.target.value }))}
+          >
+            <option value="">Price range</option>
+            <option value="1">$ — Budget</option>
+            <option value="2">$$ — Moderate</option>
+            <option value="3">$$$ — Upscale</option>
+            <option value="4">$$$$ — Fine Dining</option>
+          </select>
+          <input
+            className="form-input"
+            placeholder="Address"
+            value={addForm.address}
+            onChange={(e) => setAddForm((f) => ({ ...f, address: e.target.value }))}
+          />
+          <div className="card-actions">
+            <button type="submit" className="btn btn-primary">Add Restaurant</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowManualAdd(false)}>Cancel</button>
+          </div>
+        </form>
       )}
 
       {restaurants.length === 0 && !showSearch && (

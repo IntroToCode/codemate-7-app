@@ -108,6 +108,13 @@ body {
 .btn-primary { background: var(--orange); color: white; }
 .btn-primary:hover:not(:disabled) { background: #e0561e; }
 
+.btn-secondary { background: var(--teal); color: white; }
+.btn-secondary:hover:not(:disabled) { background: #1a8a7d; }
+
+.manual-add-form { padding: 20px; margin-bottom: 16px; }
+.manual-add-form h3 { margin: 0 0 12px; }
+.manual-add-form .form-input { margin-bottom: 10px; }
+
 .btn-spin {
   background: linear-gradient(135deg, var(--yellow), var(--orange));
   color: #1a1a1a;
