@@ -22,8 +22,9 @@ client/
       Layout.jsx         - App shell (header, nav, sidebar)
       RecentHits.jsx     - Sidebar: last 5 non-vetoed spins
       StarRating.jsx     - Interactive/read-only star rating component
+      RouletteWheel.jsx  - Casino SVG roulette wheel with ball animation + Web Audio sounds
     pages/
-      SpinPage.jsx       - Spin wheel with CSS slot-machine animation + veto
+      SpinPage.jsx       - Casino roulette wheel with animated ball + veto
       RestaurantList.jsx - Add/edit/delete restaurants, tags, ratings
       AdminDashboard.jsx - Table-based availability toggler
       SpinLog.jsx        - Full spin history log
