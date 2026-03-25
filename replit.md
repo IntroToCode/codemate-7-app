@@ -74,6 +74,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
+- **users**: id (UUID), first_name, last_name, created_at (unique per first_name+last_name)
 
 ## API Routes
 | Method | Path | Description |
@@ -92,6 +93,8 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | POST | /api/tags | Add tag to restaurant |
 | DELETE | /api/tags/:id | Remove tag |
 | POST | /api/ratings | Upsert user rating (1-5) |
+| GET | /api/users | List all user profiles |
+| POST | /api/users | Create new user profile |
 
 ## Running Tests
 ```bash
@@ -105,7 +108,7 @@ cd client && npm test    # 69 client-side tests
 - `google_place_api_key` - Google Places API key for restaurant search
 
 ## Key Design Decisions
-- **Identity**: Username stored in localStorage, matched against `added_by`/`created_by` fields. No passwords.
+- **Identity**: User profiles stored in `users` table (first_name, last_name, unique pair). Login via dropdown of existing profiles or create-new form. Display name ("First Last") stored in localStorage and used for `created_by`/`spun_by`/`rated_by` fields. No passwords.
 - **Spin algorithm**: Excludes restaurants with non-vetoed spins in the last 7 days (admin-controlled, on by default). Falls back to full active list if all eligible are excluded. First user to enter the app becomes admin.
 - **Roulette wheel**: SVG wheel with fixed pointer arrow at top (no ball). Wheel rotates and decelerates to land winning segment under the arrow.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.

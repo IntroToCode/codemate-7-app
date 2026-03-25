@@ -195,6 +195,40 @@ body {
 }
 .name-entry-input:focus { border-color: var(--orange); }
 
+select.name-entry-input {
+  appearance: auto;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.name-entry-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.name-entry-divider::before,
+.name-entry-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.name-entry-error {
+  color: #e53e3e;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.name-entry-switch {
+  width: 100%;
+  color: var(--orange);
+  font-weight: 600;
+}
+
 /* ─── Spin Page ─────────────────────────────────────────────────────────── */
 .spin-page { display: flex; flex-direction: column; align-items: center; gap: 28px; }
 

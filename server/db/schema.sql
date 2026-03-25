@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS ratings (
   UNIQUE(restaurant_id, rated_by)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  first_name  VARCHAR(100) NOT NULL,
+  last_name   VARCHAR(100) NOT NULL,
+  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(first_name, last_name)
+);
+
 CREATE TABLE IF NOT EXISTS app_settings (
   key   VARCHAR(100) PRIMARY KEY,
   value TEXT NOT NULL

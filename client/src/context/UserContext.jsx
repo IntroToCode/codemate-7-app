@@ -3,18 +3,21 @@ import { createContext, useContext, useState, useCallback } from 'react';
 const UserContext = createContext(null);
 
 export function UserProvider({ children }) {
+  const [userId, setUserId] = useState(() => localStorage.getItem('lr_user_id') || '');
   const [userName, setUserName] = useState(() => localStorage.getItem('lr_username') || '');
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const saveName = useCallback(async (name) => {
-    const trimmed = name.trim();
-    localStorage.setItem('lr_username', trimmed);
-    setUserName(trimmed);
+  const loginUser = useCallback(async (user) => {
+    const displayName = `${user.first_name} ${user.last_name}`;
+    localStorage.setItem('lr_user_id', user.id);
+    localStorage.setItem('lr_username', displayName);
+    setUserId(user.id);
+    setUserName(displayName);
     try {
       const res = await fetch('/api/settings/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: trimmed }),
+        body: JSON.stringify({ user: displayName }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -22,6 +25,14 @@ export function UserProvider({ children }) {
       }
     } catch {
     }
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('lr_user_id');
+    localStorage.removeItem('lr_username');
+    setUserId('');
+    setUserName('');
+    setIsAdmin(false);
   }, []);
 
   const checkAdmin = useCallback(async () => {
@@ -37,7 +48,7 @@ export function UserProvider({ children }) {
   }, [userName]);
 
   return (
-    <UserContext.Provider value={{ userName, saveName, isAdmin, setIsAdmin, checkAdmin }}>
+    <UserContext.Provider value={{ userId, userName, loginUser, logout, isAdmin, setIsAdmin, checkAdmin }}>
       {children}
     </UserContext.Provider>
   );
