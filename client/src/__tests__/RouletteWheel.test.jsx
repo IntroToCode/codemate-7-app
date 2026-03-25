@@ -96,7 +96,7 @@ describe('RouletteWheel rendering', () => {
     expect(segments).toHaveLength(8);
   });
 
-  test('renders the ball element', () => {
+  test('does not render a ball element', () => {
     const { container } = render(
       <RouletteWheel
         restaurants={mockRestaurants}
@@ -105,8 +105,8 @@ describe('RouletteWheel rendering', () => {
         onSpinComplete={() => {}}
       />
     );
-    const circles = container.querySelectorAll('circle[filter="url(#rw-ball)"]');
-    expect(circles.length).toBeGreaterThanOrEqual(1);
+    const balls = container.querySelectorAll('circle[filter="url(#rw-ball)"]');
+    expect(balls.length).toBe(0);
   });
 
   test('renders 18 rim diamond markers', () => {

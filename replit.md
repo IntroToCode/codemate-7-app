@@ -106,7 +106,8 @@ cd client && npm test    # 69 client-side tests
 
 ## Key Design Decisions
 - **Identity**: Username stored in localStorage, matched against `added_by`/`created_by` fields. No passwords.
-- **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
+- **Spin algorithm**: Excludes restaurants with non-vetoed spins in the last 7 days (admin-controlled, on by default). Falls back to full active list if all eligible are excluded. First user to enter the app becomes admin.
+- **Roulette wheel**: SVG wheel with fixed pointer arrow at top (no ball). Wheel rotates and decelerates to land winning segment under the arrow.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
 - **Google Places search**: Users can search by zip code + optional keyword. Paginated 20 results at a time with Next/Previous controls. "Hide already added" toggle filters out duplicates with smart page-fill (auto-fetches more from Google to fill 20 non-duplicate results). Zip code and hide-duplicates preference persisted in localStorage. Duplicates detected by google_place_id or normalized name+address match.

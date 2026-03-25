@@ -1,5 +1,4 @@
 const WHEEL_R = 168;
-const BALL_ORBIT_R = 190;
 const OUTER_RING_R = 207;
 const HUB_R = 28;
 const SVG_SIZE = 218;
@@ -43,18 +42,9 @@ function priceLabel(n) {
   return n ? '$'.repeat(n) : '?';
 }
 
-function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, segmentAngle, ballSpeed, wheelSpeed, duration) {
+function computeStopAngles(wheelAngleCurrent, winnerIndex, segmentAngle, wheelSpeed, duration) {
   const TWO_PI = 2 * Math.PI;
-  const idealBallTravel = ballSpeed * duration / 3;
   const idealWheelMag = wheelSpeed * duration / 3;
-
-  const ballTopNorm = ((-Math.PI / 2 + TWO_PI) % TWO_PI);
-  const curBallNorm = ((ballAngleCurrent % TWO_PI) + TWO_PI) % TWO_PI;
-  let ballDelta = (ballTopNorm - curBallNorm + TWO_PI) % TWO_PI;
-  if (ballDelta < 0.3) ballDelta += TWO_PI;
-  let ballTravel = ballDelta;
-  while (ballTravel + TWO_PI <= idealBallTravel) ballTravel += TWO_PI;
-  if (ballTravel < TWO_PI) ballTravel += TWO_PI;
 
   const wheelFinal = -((winnerIndex + 0.5) * segmentAngle);
   let wheelFinalActual = wheelFinal + Math.floor((wheelAngleCurrent - wheelFinal) / TWO_PI) * TWO_PI;
@@ -62,12 +52,11 @@ function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, seg
   let wheelTravel = wheelFinalActual - wheelAngleCurrent;
   while (wheelTravel - TWO_PI >= -idealWheelMag) wheelTravel -= TWO_PI;
 
-  return { ballTravel, wheelTravel };
+  return { wheelTravel };
 }
 
 export {
   WHEEL_R,
-  BALL_ORBIT_R,
   OUTER_RING_R,
   HUB_R,
   SVG_SIZE,
