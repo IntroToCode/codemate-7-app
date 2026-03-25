@@ -29,6 +29,14 @@ async function migrate() {
         END IF;
       END $$;
     `);
+    await pool.query(`
+      INSERT INTO app_settings (key, value) VALUES ('exclude_recent_7_days', 'true')
+      ON CONFLICT (key) DO NOTHING
+    `);
+    await pool.query(`
+      INSERT INTO app_settings (key, value) VALUES ('admin_username', '')
+      ON CONFLICT (key) DO NOTHING
+    `);
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);

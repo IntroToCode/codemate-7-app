@@ -12,7 +12,7 @@ function sleep(ms) {
 }
 
 export default function SpinPage({ onSpin }) {
-  const { userName } = useUser();
+  const { userName, isAdmin } = useUser();
   const { tempDisabled, clearAll } = useTempDisable();
 
   const [allRestaurants, setAllRestaurants] = useState([]);
@@ -24,6 +24,7 @@ export default function SpinPage({ onSpin }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [excludeRecent, setExcludeRecent] = useState(true);
+  const [loadingSetting, setLoadingSetting] = useState(true);
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
 
@@ -40,9 +41,38 @@ export default function SpinPage({ onSpin }) {
       .finally(() => setLoadingRest(false));
   }, []);
 
+  useEffect(() => {
+    if (!userName) return;
+    fetch(`/api/settings?user=${encodeURIComponent(userName)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setExcludeRecent(data.exclude_recent_7_days);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingSetting(false));
+  }, [userName]);
+
   const activeOnWheel = useCallback(() => {
     return allRestaurants.filter((r) => !tempDisabled.has(r.id));
   }, [allRestaurants, tempDisabled]);
+
+  async function handleToggleExclude(e) {
+    const newVal = e.target.checked;
+    const oldVal = excludeRecent;
+    setExcludeRecent(newVal);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userName, exclude_recent_7_days: newVal }),
+      });
+      if (!res.ok) {
+        setExcludeRecent(oldVal);
+      }
+    } catch {
+      setExcludeRecent(oldVal);
+    }
+  }
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
     if (spinInProgress.current) return;
@@ -83,13 +113,13 @@ export default function SpinPage({ onSpin }) {
         res = await fetch(`/api/spins/${vetoSpinId}/veto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent, skip_ids: skipIds }),
+          body: JSON.stringify({ spun_by: userName, skip_ids: skipIds }),
         });
       } else {
         res = await fetch('/api/spins', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ spun_by: userName, exclude_recent: excludeRecent, skip_ids: skipIds }),
+          body: JSON.stringify({ spun_by: userName, skip_ids: skipIds }),
         });
       }
 
@@ -179,10 +209,10 @@ export default function SpinPage({ onSpin }) {
             <input
               type="checkbox"
               checked={excludeRecent}
-              onChange={(e) => setExcludeRecent(e.target.checked)}
-              disabled={spinning}
+              onChange={handleToggleExclude}
+              disabled={spinning || !isAdmin}
             />
-            <span>Skip last 5 visited</span>
+            <span>Exclude restaurants visited in the last 7 days</span>
           </label>
 
           {tempDisabled.size > 0 && (

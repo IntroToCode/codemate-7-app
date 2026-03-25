@@ -3,6 +3,22 @@ const router = express.Router();
 const pool = require('../db/pool');
 const { selectRestaurant } = require('../lib/spinAlgorithm');
 
+async function getExcludeRecentSetting() {
+  const result = await pool.query(
+    "SELECT value FROM app_settings WHERE key = 'exclude_recent_7_days'"
+  );
+  return result.rows[0]?.value === 'true';
+}
+
+async function getRecentSpinIds() {
+  const result = await pool.query(
+    `SELECT DISTINCT restaurant_id FROM spins
+     WHERE is_vetoed = FALSE
+       AND created_at >= NOW() - INTERVAL '7 days'`
+  );
+  return result.rows.map((r) => r.restaurant_id);
+}
+
 router.get('/', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
@@ -23,21 +39,19 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { spun_by, exclude_recent = true, skip_ids = [] } = req.body;
+  const { spun_by, skip_ids = [] } = req.body;
   if (!spun_by) return res.status(400).json({ error: 'spun_by is required' });
 
   try {
-    const [restaurantsResult, recentSpinsResult] = await Promise.all([
+    const [restaurantsResult, excludeRecent, recentSpinIds] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
-      pool.query(
-        'SELECT restaurant_id FROM spins WHERE is_vetoed = FALSE ORDER BY created_at DESC LIMIT 5'
-      ),
+      getExcludeRecentSetting(),
+      getRecentSpinIds(),
     ]);
 
     const restaurants = restaurantsResult.rows;
-    const recentSpins = recentSpinsResult.rows;
 
-    const selected = selectRestaurant(restaurants, recentSpins, exclude_recent, skip_ids);
+    const selected = selectRestaurant(restaurants, recentSpinIds, excludeRecent, skip_ids);
 
     if (!selected) {
       return res.status(422).json({ error: 'No eligible restaurants to spin.' });
@@ -57,7 +71,7 @@ router.post('/', async (req, res) => {
 
 router.post('/:id/veto', async (req, res) => {
   const { id } = req.params;
-  const { spun_by, exclude_recent = true, skip_ids = [] } = req.body;
+  const { spun_by, skip_ids = [] } = req.body;
   if (!spun_by) return res.status(400).json({ error: 'spun_by is required' });
 
   try {
@@ -69,11 +83,10 @@ router.post('/:id/veto', async (req, res) => {
 
     const vetoedRestaurantId = vetoResult.rows[0].restaurant_id;
 
-    const [restaurantsResult, recentSpinsResult] = await Promise.all([
+    const [restaurantsResult, excludeRecent, recentSpinIds] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
-      pool.query(
-        'SELECT restaurant_id FROM spins WHERE is_vetoed = FALSE ORDER BY created_at DESC LIMIT 5'
-      ),
+      getExcludeRecentSetting(),
+      getRecentSpinIds(),
     ]);
 
     const vetoSkipIds = vetoedRestaurantId
@@ -82,8 +95,8 @@ router.post('/:id/veto', async (req, res) => {
 
     const selected = selectRestaurant(
       restaurantsResult.rows,
-      recentSpinsResult.rows,
-      exclude_recent,
+      recentSpinIds,
+      excludeRecent,
       vetoSkipIds
     );
 

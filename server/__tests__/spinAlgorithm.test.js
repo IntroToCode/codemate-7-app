@@ -1,7 +1,6 @@
 const { selectRestaurant } = require('../lib/spinAlgorithm');
 
 const makeRestaurant = (id, active = true) => ({ id, name: `Restaurant ${id}`, active });
-const makeSpin = (restaurant_id) => ({ restaurant_id });
 
 describe('selectRestaurant', () => {
   test('returns null when no active restaurants', () => {
@@ -24,7 +23,7 @@ describe('selectRestaurant', () => {
     expect(result.id).toBe('a');
   });
 
-  test('excludes last 5 spin restaurants when excludeRecent is true', () => {
+  test('excludes recently visited restaurant IDs when excludeRecent is true', () => {
     const restaurants = [
       makeRestaurant('a'),
       makeRestaurant('b'),
@@ -33,50 +32,51 @@ describe('selectRestaurant', () => {
       makeRestaurant('e'),
       makeRestaurant('f'),
     ];
-    const recentSpins = ['a', 'b', 'c', 'd', 'e'].map(makeSpin);
-    const result = selectRestaurant(restaurants, recentSpins, true);
+    const recentIds = ['a', 'b', 'c', 'd', 'e'];
+    const result = selectRestaurant(restaurants, recentIds, true);
     expect(result).not.toBeNull();
     expect(result.id).toBe('f');
   });
 
   test('does NOT exclude restaurants when excludeRecent is false', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b')];
-    const recentSpins = [makeSpin('a'), makeSpin('b')];
+    const recentIds = ['a', 'b'];
     const results = new Set();
     for (let i = 0; i < 30; i++) {
-      results.add(selectRestaurant(restaurants, recentSpins, false).id);
+      results.add(selectRestaurant(restaurants, recentIds, false).id);
     }
     expect(results.has('a') || results.has('b')).toBe(true);
   });
 
-  test('falls back to full active list when all active restaurants are in last 5', () => {
+  test('falls back to full active list when all active restaurants are recent', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b')];
-    const recentSpins = [makeSpin('a'), makeSpin('b')];
-    const result = selectRestaurant(restaurants, recentSpins, true);
+    const recentIds = ['a', 'b'];
+    const result = selectRestaurant(restaurants, recentIds, true);
     expect(result).not.toBeNull();
     expect(['a', 'b']).toContain(result.id);
   });
 
-  test('works when fewer than 5 prior spins exist', () => {
+  test('works when fewer recent IDs than restaurants exist', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
-    const recentSpins = [makeSpin('a')];
+    const recentIds = ['a'];
     const results = new Set();
     for (let i = 0; i < 30; i++) {
-      results.add(selectRestaurant(restaurants, recentSpins, true).id);
+      results.add(selectRestaurant(restaurants, recentIds, true).id);
     }
     expect(results.has('b') || results.has('c')).toBe(true);
     expect(results.has('a')).toBe(false);
   });
 
-  test('only considers up to 5 most recent spins for exclusion', () => {
+  test('handles duplicate IDs in recent list correctly', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
-    const recentSpins = [
-      makeSpin('a'), makeSpin('b'),
-      makeSpin('c'), makeSpin('a'), makeSpin('b'),
-      makeSpin('c'),
-    ];
-    const result = selectRestaurant(restaurants, recentSpins, true);
-    expect(result).not.toBeNull();
+    const recentIds = ['a', 'a', 'b', 'b'];
+    const results = new Set();
+    for (let i = 0; i < 30; i++) {
+      results.add(selectRestaurant(restaurants, recentIds, true).id);
+    }
+    expect(results.has('c')).toBe(true);
+    expect(results.has('a')).toBe(false);
+    expect(results.has('b')).toBe(false);
   });
 
   test('returns only active restaurants', () => {

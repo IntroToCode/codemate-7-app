@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserProvider, useUser } from './context/UserContext';
 import { TempDisableProvider } from './context/TempDisableContext';
 import NameEntry from './components/NameEntry';
@@ -11,8 +11,12 @@ import SpinLog from './pages/SpinLog';
 import './index.css';
 
 function AppRoutes() {
-  const { userName } = useUser();
+  const { userName, checkAdmin } = useUser();
   const [spinKey, setSpinKey] = useState(0);
+
+  useEffect(() => {
+    if (userName) checkAdmin();
+  }, [userName, checkAdmin]);
 
   if (!userName) return <NameEntry />;
 

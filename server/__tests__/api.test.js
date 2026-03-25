@@ -141,6 +141,7 @@ describe('POST /api/spins', () => {
     const restaurant = makeRestaurant();
     mockPool.query
       .mockResolvedValueOnce({ rows: [restaurant] })
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: UUID2, restaurant_id: UUID, spun_by: 'Bob', is_vetoed: false, created_at: new Date().toISOString() }] });
     const res = await request(app).post('/api/spins').send({ spun_by: 'Bob' });
@@ -155,6 +156,7 @@ describe('POST /api/spins', () => {
     const restaurantB = makeRestaurant({ id: 'bbbb', name: 'Restaurant B' });
     mockPool.query
       .mockResolvedValueOnce({ rows: [restaurantA, restaurantB] })
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: UUID2, restaurant_id: 'bbbb', spun_by: 'Bob', is_vetoed: false, created_at: new Date().toISOString() }] });
 
@@ -174,6 +176,7 @@ describe('POST /api/spins', () => {
   test('returns 422 when no eligible restaurants', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(app).post('/api/spins').send({ spun_by: 'Bob' });
     expect(res.status).toBe(422);
@@ -205,6 +208,7 @@ describe('POST /api/spins/:id/veto', () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [{ id: UUID, is_vetoed: true }] })
       .mockResolvedValueOnce({ rows: [restaurant] })
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [newSpin] });
     const res = await request(app).post(`/api/spins/${UUID}/veto`).send({ spun_by: 'Bob' });
@@ -229,6 +233,7 @@ describe('POST /api/spins/:id/veto', () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [{ id: UUID, restaurant_id: vetoedId, is_vetoed: true }] })
       .mockResolvedValueOnce({ rows: [vetoedRestaurant, otherRestaurant] })
+      .mockResolvedValueOnce({ rows: [{ value: 'true' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [newSpin] });
 
@@ -236,6 +241,109 @@ describe('POST /api/spins/:id/veto', () => {
     expect(res.status).toBe(201);
     expect(res.body.restaurant.id).toBe(otherId);
     expect(res.body.restaurant.id).not.toBe(vetoedId);
+  });
+});
+
+describe('GET /api/settings', () => {
+  test('returns settings with is_admin false for non-admin user', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        { key: 'exclude_recent_7_days', value: 'true' },
+        { key: 'admin_username', value: 'Alice' },
+      ],
+    });
+    const res = await request(app).get('/api/settings?user=Bob');
+    expect(res.status).toBe(200);
+    expect(res.body.exclude_recent_7_days).toBe(true);
+    expect(res.body.is_admin).toBe(false);
+  });
+
+  test('returns settings with is_admin true for admin user', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        { key: 'exclude_recent_7_days', value: 'true' },
+        { key: 'admin_username', value: 'Alice' },
+      ],
+    });
+    const res = await request(app).get('/api/settings?user=Alice');
+    expect(res.status).toBe(200);
+    expect(res.body.is_admin).toBe(true);
+  });
+
+  test('returns exclude_recent_7_days as false when setting is false', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        { key: 'exclude_recent_7_days', value: 'false' },
+        { key: 'admin_username', value: 'Alice' },
+      ],
+    });
+    const res = await request(app).get('/api/settings?user=Alice');
+    expect(res.status).toBe(200);
+    expect(res.body.exclude_recent_7_days).toBe(false);
+  });
+});
+
+describe('PUT /api/settings', () => {
+  test('admin can update exclude_recent_7_days', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ value: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .put('/api/settings')
+      .send({ user: 'Alice', exclude_recent_7_days: false });
+    expect(res.status).toBe(200);
+    expect(res.body.exclude_recent_7_days).toBe(false);
+  });
+
+  test('non-admin cannot update settings', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ value: 'Alice' }] });
+    const res = await request(app)
+      .put('/api/settings')
+      .send({ user: 'Bob', exclude_recent_7_days: false });
+    expect(res.status).toBe(403);
+  });
+
+  test('returns 400 if user is missing', async () => {
+    const res = await request(app)
+      .put('/api/settings')
+      .send({ exclude_recent_7_days: false });
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 400 if exclude_recent_7_days is not boolean', async () => {
+    const res = await request(app)
+      .put('/api/settings')
+      .send({ user: 'Alice', exclude_recent_7_days: 'yes' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/settings/register', () => {
+  test('first user becomes admin', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ value: '' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/register')
+      .send({ user: 'Alice' });
+    expect(res.status).toBe(200);
+    expect(res.body.is_admin).toBe(true);
+  });
+
+  test('subsequent user is not admin', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [{ value: 'Alice' }] });
+    const res = await request(app)
+      .post('/api/settings/register')
+      .send({ user: 'Bob' });
+    expect(res.status).toBe(200);
+    expect(res.body.is_admin).toBe(false);
+  });
+
+  test('returns 400 if user is missing', async () => {
+    const res = await request(app)
+      .post('/api/settings/register')
+      .send({});
+    expect(res.status).toBe(400);
   });
 });
 

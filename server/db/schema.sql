@@ -36,3 +36,8 @@ CREATE TABLE IF NOT EXISTS ratings (
   created_at     TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(restaurant_id, rated_by)
 );
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key   VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL
+);
