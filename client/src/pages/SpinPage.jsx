@@ -261,9 +261,25 @@ export default function SpinPage({ onSpin }) {
               </div>
             </div>
           ) : tooFew ? (
-            <p className="roulette-min-notice">
-              Add at least 2 restaurants to spin the wheel!
-            </p>
+            <div className="excluded-banner">
+              <p>{excludeRecent && eligibleCount === 1
+                ? 'Only 1 restaurant left after exclusion — need at least 2 to spin!'
+                : 'Add at least 2 restaurants to spin the wheel!'}</p>
+              <div className="excluded-actions">
+                <a href="/restaurants" className="btn btn-primary">Add More Restaurants</a>
+                {excludeRecent && eligibleCount < 2 && isAdmin && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleToggleExclude({ target: { checked: false } })}
+                  >
+                    Turn Off Exclusion Filter
+                  </button>
+                )}
+                {excludeRecent && eligibleCount < 2 && !isAdmin && (
+                  <span className="excluded-hint">Ask your admin to turn off the exclusion filter</span>
+                )}
+              </div>
+            </div>
           ) : (
             <button
               className="btn btn-spin"
