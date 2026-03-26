@@ -75,10 +75,10 @@ export default function SpinPage({ onSpin }) {
       return shuffleArray(candidates).slice(0, 8);
     }
     const eligible = candidates.filter((r) => !recentIds.has(r.id));
-    if (eligible.length >= 2) {
+    if (eligible.length > 0) {
       return shuffleArray(eligible).slice(0, 8);
     }
-    return shuffleArray(candidates).slice(0, 8);
+    return [];
   }
 
   const activeOnWheel = useCallback(() => {
@@ -220,7 +220,10 @@ export default function SpinPage({ onSpin }) {
   }
 
   const available = activeOnWheel();
-  const tooFew = !loadingRest && available.length < 2;
+  const eligibleCount = excludeRecent
+    ? available.filter((r) => !recentRestaurantIds.has(r.id)).length
+    : available.length;
+  const tooFew = !loadingRest && (available.length < 2 || (excludeRecent && eligibleCount < 2 && eligibleCount > 0));
 
   return (
     <div className="spin-page">
