@@ -21,8 +21,8 @@ export default function SpinPage({ onSpin }) {
 
   const [allRestaurants, setAllRestaurants] = useState([]);
   const [recentRestaurantIds, setRecentRestaurantIds] = useState(new Set());
-  const [lastVisitMap, setLastVisitMap] = useState({});
   const [loadingRest, setLoadingRest] = useState(true);
+  const [allExcluded, setAllExcluded] = useState(false);
   const [wheelRestaurants, setWheelRestaurants] = useState([]);
   const [spinning, setSpinning] = useState(false);
   const [winnerIndex, setWinnerIndex] = useState(null);
@@ -52,29 +52,24 @@ export default function SpinPage({ onSpin }) {
           : [];
         const recentIds = new Set(recentSpins.map((s) => s.restaurant_id).filter(Boolean));
 
-        const visitMap = {};
-        recentSpins.forEach((s) => {
-          if (!s.restaurant_id) return;
-          const t = new Date(s.created_at).getTime();
-          if (!visitMap[s.restaurant_id] || t > visitMap[s.restaurant_id]) {
-            visitMap[s.restaurant_id] = t;
-          }
-        });
-
         const exclude = settingsData.exclude_recent_7_days ?? true;
         setExcludeRecent(exclude);
         setAllRestaurants(active);
         setRecentRestaurantIds(recentIds);
-        setLastVisitMap(visitMap);
 
-        const initial = buildWheel(active, recentIds, exclude, new Set(), visitMap);
+        const eligible = exclude
+          ? active.filter((r) => !recentIds.has(r.id))
+          : active;
+        setAllExcluded(exclude && eligible.length === 0 && active.length > 0);
+
+        const initial = buildWheel(active, recentIds, exclude, new Set());
         setWheelRestaurants(initial);
       })
       .catch(() => {})
       .finally(() => setLoadingRest(false));
   }, [userName]);
 
-  function buildWheel(active, recentIds, exclude, skipped, visitMap = {}) {
+  function buildWheel(active, recentIds, exclude, skipped) {
     const candidates = active.filter((r) => !skipped.has(r.id));
     if (!exclude || recentIds.size === 0) {
       return shuffleArray(candidates).slice(0, 8);
@@ -83,13 +78,7 @@ export default function SpinPage({ onSpin }) {
     if (eligible.length >= 2) {
       return shuffleArray(eligible).slice(0, 8);
     }
-    const sorted = [...candidates].sort((a, b) => {
-      const aTime = visitMap[a.id] || 0;
-      const bTime = visitMap[b.id] || 0;
-      return aTime - bTime;
-    });
-    const topThird = Math.max(2, Math.ceil(sorted.length / 3));
-    return shuffleArray(sorted.slice(0, topThird)).slice(0, 8);
+    return shuffleArray(candidates).slice(0, 8);
   }
 
   const activeOnWheel = useCallback(() => {
@@ -100,7 +89,8 @@ export default function SpinPage({ onSpin }) {
     const newVal = e.target.checked;
     const oldVal = excludeRecent;
     setExcludeRecent(newVal);
-    const newWheel = buildWheel(allRestaurants, recentRestaurantIds, newVal, tempDisabled, lastVisitMap);
+    if (!newVal) setAllExcluded(false);
+    const newWheel = buildWheel(allRestaurants, recentRestaurantIds, newVal, tempDisabled);
     setWheelRestaurants(newWheel);
     try {
       const res = await fetch('/api/settings', {
@@ -110,7 +100,7 @@ export default function SpinPage({ onSpin }) {
       });
       if (!res.ok) {
         setExcludeRecent(oldVal);
-        const revertWheel = buildWheel(allRestaurants, recentRestaurantIds, oldVal, tempDisabled, lastVisitMap);
+        const revertWheel = buildWheel(allRestaurants, recentRestaurantIds, oldVal, tempDisabled);
         setWheelRestaurants(revertWheel);
       }
     } catch {
@@ -137,7 +127,7 @@ export default function SpinPage({ onSpin }) {
       return;
     }
 
-    const pool = buildWheel(available, recentRestaurantIds, excludeRecent, new Set(), lastVisitMap);
+    const pool = buildWheel(available, recentRestaurantIds, excludeRecent, new Set());
     setWheelRestaurants(pool);
 
     const entranceDuration = pool.length * 100 + 450;
@@ -171,6 +161,9 @@ export default function SpinPage({ onSpin }) {
       await minSpinPromise;
 
       if (!res.ok) {
+        if (data.allExcluded) {
+          setAllExcluded(true);
+        }
         setError(data.error || 'Something went wrong.');
         setSpinning(false);
         setVetoing(false);
@@ -235,9 +228,27 @@ export default function SpinPage({ onSpin }) {
         )}
 
         <div className="spin-controls">
-          {tooFew ? (
+          {allExcluded && excludeRecent ? (
+            <div className="excluded-banner">
+              <p>All restaurants have been visited in the last 7 days!</p>
+              <div className="excluded-actions">
+                <a href="/restaurants" className="btn btn-primary">Add More Restaurants</a>
+                {isAdmin && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={(e) => handleToggleExclude({ target: { checked: false } })}
+                  >
+                    Turn Off Exclusion Filter
+                  </button>
+                )}
+                {!isAdmin && (
+                  <span className="excluded-hint">Ask your admin to turn off the exclusion filter</span>
+                )}
+              </div>
+            </div>
+          ) : tooFew ? (
             <p className="roulette-min-notice">
-              🍽️ Add at least 2 restaurants to spin the wheel!
+              Add at least 2 restaurants to spin the wheel!
             </p>
           ) : (
             <button
@@ -268,7 +279,7 @@ export default function SpinPage({ onSpin }) {
           </label>
         </div>
 
-        {error && <div className="spin-error">{error}</div>}
+        {error && !allExcluded && <div className="spin-error">{error}</div>}
       </div>
 
       {result && !spinning && (

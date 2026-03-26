@@ -267,6 +267,32 @@ body {
 .toggle-label-disabled input { cursor: not-allowed; }
 .toggle-admin-note { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 
+.excluded-banner {
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: 12px;
+  padding: 20px 24px;
+  text-align: center;
+  max-width: 420px;
+}
+.excluded-banner p {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #92400e;
+  margin: 0 0 14px 0;
+}
+.excluded-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.excluded-hint {
+  font-size: 0.88rem;
+  color: #92400e;
+  opacity: 0.8;
+}
+
 .spin-error {
   background: #fff5f5;
   border: 1px solid #fed7d7;

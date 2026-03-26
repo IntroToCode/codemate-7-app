@@ -58,18 +58,25 @@ router.post('/', async (req, res) => {
 
     const restaurants = restaurantsResult.rows;
 
-    const selected = selectRestaurant(restaurants, recentData.ids, excludeRecent, skip_ids, recentData.lastVisitMap);
+    const result = selectRestaurant(restaurants, recentData.ids, excludeRecent, skip_ids);
 
-    if (!selected) {
+    if (!result.selected && result.allExcluded) {
+      return res.status(422).json({
+        error: 'All restaurants have been visited in the last 7 days. Add more restaurants or turn off the exclusion filter.',
+        allExcluded: true,
+      });
+    }
+
+    if (!result.selected) {
       return res.status(422).json({ error: 'No eligible restaurants to spin.' });
     }
 
     const spinResult = await pool.query(
       `INSERT INTO spins (restaurant_id, spun_by) VALUES ($1, $2) RETURNING *`,
-      [selected.id, spun_by]
+      [result.selected.id, spun_by]
     );
 
-    res.status(201).json({ spin: spinResult.rows[0], restaurant: selected });
+    res.status(201).json({ spin: spinResult.rows[0], restaurant: result.selected });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -100,24 +107,30 @@ router.post('/:id/veto', async (req, res) => {
       ? [...new Set([...skip_ids, vetoedRestaurantId])]
       : skip_ids;
 
-    const selected = selectRestaurant(
+    const result = selectRestaurant(
       restaurantsResult.rows,
       recentData.ids,
       excludeRecent,
-      vetoSkipIds,
-      recentData.lastVisitMap
+      vetoSkipIds
     );
 
-    if (!selected) {
+    if (!result.selected && result.allExcluded) {
+      return res.status(422).json({
+        error: 'All restaurants have been visited in the last 7 days. Add more restaurants or turn off the exclusion filter.',
+        allExcluded: true,
+      });
+    }
+
+    if (!result.selected) {
       return res.status(422).json({ error: 'No eligible restaurants after veto.' });
     }
 
     const newSpinResult = await pool.query(
       `INSERT INTO spins (restaurant_id, spun_by) VALUES ($1, $2) RETURNING *`,
-      [selected.id, spun_by]
+      [result.selected.id, spun_by]
     );
 
-    res.status(201).json({ spin: newSpinResult.rows[0], restaurant: selected });
+    res.status(201).json({ spin: newSpinResult.rows[0], restaurant: result.selected });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
