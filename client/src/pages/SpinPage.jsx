@@ -196,7 +196,18 @@ export default function SpinPage({ onSpin }) {
     const winner = pendingResultRef.current;
     setResult(winner);
     if (winner) {
-      setRecentRestaurantIds((prev) => new Set([...prev, winner.restaurant.id]));
+      const updatedRecent = new Set([...recentRestaurantIds, winner.restaurant.id]);
+      setRecentRestaurantIds(updatedRecent);
+
+      const eligible = excludeRecent
+        ? allRestaurants.filter((r) => !updatedRecent.has(r.id))
+        : allRestaurants;
+      if (excludeRecent && eligible.length === 0 && allRestaurants.length > 0) {
+        setAllExcluded(true);
+      }
+
+      const newWheel = buildWheel(allRestaurants, updatedRecent, excludeRecent, tempDisabled);
+      setWheelRestaurants(newWheel);
     }
     clearAll();
     spinInProgress.current = false;
