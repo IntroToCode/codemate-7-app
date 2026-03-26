@@ -153,3 +153,115 @@ add roulette sound effect.
 **Author:** Alan
 
 ---
+
+### 3/26/2026 — ~3:00 PM
+
+**Prompt:** "look at this issue: https://github.com/IntroToCode/codemate-7-app/issues/17"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:02 PM
+
+**Prompt:** "lets make sure main is up to date"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:04 PM
+
+**Prompt:** "check whether issue 17 is still relevant to the current codebase"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:06 PM
+
+**Prompt:** "create a new branch for this called bugfix/issue-17-cleanup"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:08 PM
+
+**Prompt:** "launch the plan agent to fix these bugs, i would ignore the auth problem since we want the current behavior of just typing in names."
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:15 PM
+
+**Prompt:** "Will you have testing, what is the full plan"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:20 PM
+
+**Prompt:** "start implementing"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:35 PM
+
+**Prompt:** "review the changes and suggest changes if any."
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:40 PM
+
+**Prompt:** "whats this lockfile change?"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:42 PM
+
+**Prompt:** "yes" [Confirming revert of lockfile changes]
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:44 PM
+
+**Prompt:** "commit and push."
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:50 PM
+
+**Prompt:** "update prompts.md with the prompts i posted here for these changes"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:52 PM
+
+**Prompt:** "actually start from look at this issue"
+
+**Author:** Alan
+
+---
+
+### 3/26/2026 — ~3:54 PM
+
+**Prompt:** "add timestamp and commit and push"
+
+**Author:** Alan
+
+---
