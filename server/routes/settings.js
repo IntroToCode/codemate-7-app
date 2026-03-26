@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
     res.json({
       exclude_recent_7_days: settings.exclude_recent_7_days === 'true',
       is_admin: isAdmin,
+      admin_name: adminUsername,
     });
   } catch (err) {
     console.error(err);
@@ -65,9 +66,9 @@ router.post('/register', async (req, res) => {
         "UPDATE app_settings SET value = $1 WHERE key = 'admin_username'",
         [trimmed]
       );
-      return res.json({ is_admin: true });
+      return res.json({ is_admin: true, admin_name: trimmed });
     }
-    res.json({ is_admin: currentAdmin === trimmed });
+    res.json({ is_admin: currentAdmin === trimmed, admin_name: currentAdmin });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

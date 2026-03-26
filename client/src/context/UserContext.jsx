@@ -5,6 +5,7 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [userName, setUserName] = useState(() => localStorage.getItem('lr_username') || '');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminName, setAdminName] = useState('');
   const [adminLoading, setAdminLoading] = useState(() => !!localStorage.getItem('lr_username'));
 
   const logout = useCallback(() => {
@@ -27,6 +28,7 @@ export function UserProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setIsAdmin(data.is_admin);
+        if (data.admin_name) setAdminName(data.admin_name);
       }
     } catch {
     } finally {
@@ -42,6 +44,7 @@ export function UserProvider({ children }) {
       if (res.ok) {
         const data = await res.json();
         setIsAdmin(data.is_admin);
+        if (data.admin_name) setAdminName(data.admin_name);
       }
     } catch {
     } finally {
@@ -50,7 +53,7 @@ export function UserProvider({ children }) {
   }, [userName]);
 
   return (
-    <UserContext.Provider value={{ userName, saveName, logout, isAdmin, adminLoading, setIsAdmin, checkAdmin }}>
+    <UserContext.Provider value={{ userName, saveName, logout, isAdmin, adminName, adminLoading, setIsAdmin, checkAdmin }}>
       {children}
     </UserContext.Provider>
   );
