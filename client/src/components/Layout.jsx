@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext';
 import RecentHits from './RecentHits';
 
 export default function Layout({ children, spinRefresh }) {
-  const { userName, saveName } = useUser();
+  const { userName, logout, isAdmin } = useUser();
 
   return (
     <div className="app-layout">
@@ -15,14 +15,16 @@ export default function Layout({ children, spinRefresh }) {
         <nav className="app-nav">
           <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>🎰 Spin</NavLink>
           <NavLink to="/restaurants" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>🗂️ Restaurants</NavLink>
-          <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>⚙️ Admin</NavLink>
+          {isAdmin && (
+            <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>⚙️ Admin</NavLink>
+          )}
           <NavLink to="/log" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>📜 Log</NavLink>
         </nav>
         <div className="header-user">
           <span className="user-chip">👤 {userName}</span>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => { localStorage.removeItem('lr_username'); saveName(''); }}
+            onClick={logout}
             title="Change name"
           >✏️</button>
         </div>

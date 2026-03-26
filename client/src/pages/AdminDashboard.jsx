@@ -7,7 +7,7 @@ function priceLabel(n) {
 }
 
 export default function AdminDashboard() {
-  const { userName } = useUser();
+  const { userName, isAdmin, adminLoading } = useUser();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +28,20 @@ export default function AdminDashboard() {
     load();
   }
 
-  if (loading) return <div className="loading">Loading… 🍽️</div>;
+  if (adminLoading || loading) return <div className="loading">Loading… 🍽️</div>;
+
+  if (!isAdmin) {
+    return (
+      <div className="admin-page">
+        <div className="page-header">
+          <h2>⚙️ Admin Dashboard</h2>
+        </div>
+        <div className="access-denied">
+          <p>🔒 Admin access only. You do not have permission to view this page.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-page">

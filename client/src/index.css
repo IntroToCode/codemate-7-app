@@ -263,6 +263,9 @@ body {
 
 .toggle-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-muted); cursor: pointer; }
 .toggle-label input { accent-color: var(--teal); width: 16px; height: 16px; cursor: pointer; }
+.toggle-label-disabled { opacity: 0.5; cursor: not-allowed; }
+.toggle-label-disabled input { cursor: not-allowed; }
+.toggle-admin-note { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
 
 .spin-error {
   background: #fff5f5;
@@ -441,6 +444,7 @@ body {
 
 /* ─── Admin Dashboard ───────────────────────────────────────────────────── */
 .admin-page { display: flex; flex-direction: column; gap: 20px; }
+.access-denied { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 1rem; }
 .admin-table-wrap { overflow-x: auto; }
 
 .admin-table {

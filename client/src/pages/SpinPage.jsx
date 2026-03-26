@@ -12,7 +12,7 @@ function sleep(ms) {
 }
 
 export default function SpinPage({ onSpin }) {
-  const { userName, isAdmin } = useUser();
+  const { userName, isAdmin, adminLoading } = useUser();
   const { tempDisabled, clearAll } = useTempDisable();
 
   const [allRestaurants, setAllRestaurants] = useState([]);
@@ -205,14 +205,18 @@ export default function SpinPage({ onSpin }) {
             </button>
           )}
 
-          <label className="toggle-label">
+          <label
+            className={`toggle-label${(!adminLoading && !isAdmin) ? ' toggle-label-disabled' : ''}`}
+            title={adminLoading ? 'Checking permissions…' : (!isAdmin ? 'Admin only' : undefined)}
+          >
             <input
               type="checkbox"
               checked={excludeRecent}
               onChange={handleToggleExclude}
-              disabled={spinning || !isAdmin}
+              disabled={spinning || adminLoading || !isAdmin}
             />
             <span>Exclude restaurants visited in the last 7 days</span>
+            {!adminLoading && !isAdmin && <span className="toggle-admin-note"> (Admin only)</span>}
           </label>
 
           {tempDisabled.size > 0 && (
