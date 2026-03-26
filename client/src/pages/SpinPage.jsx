@@ -21,6 +21,7 @@ export default function SpinPage({ onSpin }) {
 
   const [allRestaurants, setAllRestaurants] = useState([]);
   const [recentRestaurantIds, setRecentRestaurantIds] = useState(new Set());
+  const [lastVisitMap, setLastVisitMap] = useState({});
   const [loadingRest, setLoadingRest] = useState(true);
   const [wheelRestaurants, setWheelRestaurants] = useState([]);
   const [spinning, setSpinning] = useState(false);
@@ -46,34 +47,49 @@ export default function SpinPage({ onSpin }) {
           : [];
 
         const cutoff = sevenDaysAgo();
-        const recentIds = new Set(
-          Array.isArray(spinsData)
-            ? spinsData
-                .filter((s) => !s.is_vetoed && new Date(s.created_at).getTime() >= cutoff)
-                .map((s) => s.restaurant_id)
-            : []
-        );
+        const recentSpins = Array.isArray(spinsData)
+          ? spinsData.filter((s) => !s.is_vetoed && new Date(s.created_at).getTime() >= cutoff)
+          : [];
+        const recentIds = new Set(recentSpins.map((s) => s.restaurant_id).filter(Boolean));
+
+        const visitMap = {};
+        recentSpins.forEach((s) => {
+          if (!s.restaurant_id) return;
+          const t = new Date(s.created_at).getTime();
+          if (!visitMap[s.restaurant_id] || t > visitMap[s.restaurant_id]) {
+            visitMap[s.restaurant_id] = t;
+          }
+        });
 
         const exclude = settingsData.exclude_recent_7_days ?? true;
         setExcludeRecent(exclude);
         setAllRestaurants(active);
         setRecentRestaurantIds(recentIds);
+        setLastVisitMap(visitMap);
 
-        const initial = buildWheel(active, recentIds, exclude, new Set());
+        const initial = buildWheel(active, recentIds, exclude, new Set(), visitMap);
         setWheelRestaurants(initial);
       })
       .catch(() => {})
       .finally(() => setLoadingRest(false));
   }, [userName]);
 
-  function buildWheel(active, recentIds, exclude, skipped) {
+  function buildWheel(active, recentIds, exclude, skipped, visitMap = {}) {
     const candidates = active.filter((r) => !skipped.has(r.id));
     if (!exclude || recentIds.size === 0) {
       return shuffleArray(candidates).slice(0, 8);
     }
     const eligible = candidates.filter((r) => !recentIds.has(r.id));
-    const pool = eligible.length >= 2 ? eligible : candidates;
-    return shuffleArray(pool).slice(0, 8);
+    if (eligible.length >= 2) {
+      return shuffleArray(eligible).slice(0, 8);
+    }
+    const sorted = [...candidates].sort((a, b) => {
+      const aTime = visitMap[a.id] || 0;
+      const bTime = visitMap[b.id] || 0;
+      return aTime - bTime;
+    });
+    const topThird = Math.max(2, Math.ceil(sorted.length / 3));
+    return shuffleArray(sorted.slice(0, topThird)).slice(0, 8);
   }
 
   const activeOnWheel = useCallback(() => {
@@ -84,7 +100,7 @@ export default function SpinPage({ onSpin }) {
     const newVal = e.target.checked;
     const oldVal = excludeRecent;
     setExcludeRecent(newVal);
-    const newWheel = buildWheel(allRestaurants, recentRestaurantIds, newVal, tempDisabled);
+    const newWheel = buildWheel(allRestaurants, recentRestaurantIds, newVal, tempDisabled, lastVisitMap);
     setWheelRestaurants(newWheel);
     try {
       const res = await fetch('/api/settings', {
@@ -94,7 +110,7 @@ export default function SpinPage({ onSpin }) {
       });
       if (!res.ok) {
         setExcludeRecent(oldVal);
-        const revertWheel = buildWheel(allRestaurants, recentRestaurantIds, oldVal, tempDisabled);
+        const revertWheel = buildWheel(allRestaurants, recentRestaurantIds, oldVal, tempDisabled, lastVisitMap);
         setWheelRestaurants(revertWheel);
       }
     } catch {
@@ -121,7 +137,7 @@ export default function SpinPage({ onSpin }) {
       return;
     }
 
-    const pool = buildWheel(available, recentRestaurantIds, excludeRecent, new Set());
+    const pool = buildWheel(available, recentRestaurantIds, excludeRecent, new Set(), lastVisitMap);
     setWheelRestaurants(pool);
 
     const entranceDuration = pool.length * 100 + 450;

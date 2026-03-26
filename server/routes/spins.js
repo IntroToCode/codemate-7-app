@@ -10,13 +10,20 @@ async function getExcludeRecentSetting() {
   return result.rows[0]?.value === 'true';
 }
 
-async function getRecentSpinIds() {
+async function getRecentSpinData() {
   const result = await pool.query(
-    `SELECT DISTINCT restaurant_id FROM spins
+    `SELECT restaurant_id, MAX(created_at) AS last_visit
+     FROM spins
      WHERE is_vetoed = FALSE
-       AND created_at >= NOW() - INTERVAL '7 days'`
+       AND created_at >= NOW() - INTERVAL '7 days'
+     GROUP BY restaurant_id`
   );
-  return result.rows.map((r) => r.restaurant_id);
+  const ids = result.rows.map((r) => r.restaurant_id).filter(Boolean);
+  const lastVisitMap = {};
+  result.rows.forEach((r) => {
+    if (r.restaurant_id) lastVisitMap[r.restaurant_id] = r.last_visit;
+  });
+  return { ids, lastVisitMap };
 }
 
 router.get('/', async (req, res) => {
@@ -43,15 +50,15 @@ router.post('/', async (req, res) => {
   if (!spun_by) return res.status(400).json({ error: 'spun_by is required' });
 
   try {
-    const [restaurantsResult, excludeRecent, recentSpinIds] = await Promise.all([
+    const [restaurantsResult, excludeRecent, recentData] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
       getExcludeRecentSetting(),
-      getRecentSpinIds(),
+      getRecentSpinData(),
     ]);
 
     const restaurants = restaurantsResult.rows;
 
-    const selected = selectRestaurant(restaurants, recentSpinIds, excludeRecent, skip_ids);
+    const selected = selectRestaurant(restaurants, recentData.ids, excludeRecent, skip_ids, recentData.lastVisitMap);
 
     if (!selected) {
       return res.status(422).json({ error: 'No eligible restaurants to spin.' });
@@ -83,10 +90,10 @@ router.post('/:id/veto', async (req, res) => {
 
     const vetoedRestaurantId = vetoResult.rows[0].restaurant_id;
 
-    const [restaurantsResult, excludeRecent, recentSpinIds] = await Promise.all([
+    const [restaurantsResult, excludeRecent, recentData] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
       getExcludeRecentSetting(),
-      getRecentSpinIds(),
+      getRecentSpinData(),
     ]);
 
     const vetoSkipIds = vetoedRestaurantId
@@ -95,9 +102,10 @@ router.post('/:id/veto', async (req, res) => {
 
     const selected = selectRestaurant(
       restaurantsResult.rows,
-      recentSpinIds,
+      recentData.ids,
       excludeRecent,
-      vetoSkipIds
+      vetoSkipIds,
+      recentData.lastVisitMap
     );
 
     if (!selected) {
