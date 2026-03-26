@@ -7,10 +7,13 @@ router.get('/', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
   try {
+    const excludeVetoed = req.query.exclude_vetoed === 'true';
+    const whereClause = excludeVetoed ? 'WHERE s.is_vetoed = FALSE' : '';
     const result = await pool.query(
       `SELECT s.*, r.name AS restaurant_name
        FROM spins s
        LEFT JOIN restaurants r ON r.id = s.restaurant_id
+       ${whereClause}
        ORDER BY s.created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset]

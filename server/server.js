@@ -45,11 +45,9 @@ app.get('*', (req, res) => {
 async function startServer() {
   await migrate();
 
-  const PORTS = [3001, 5000];
-  PORTS.forEach((port) => {
-    app.listen(port, '0.0.0.0', () => {
-      console.log(`Server listening on port ${port}`);
-    });
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server listening on port ${PORT}`);
   });
 }
 

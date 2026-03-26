@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { priceLabel } from './rouletteUtils.jsx';
 
 const ZIP_STORAGE_KEY = 'lr_search_zipcode';
 const HIDE_DUPES_STORAGE_KEY = 'lr_hide_duplicates';
@@ -21,10 +22,6 @@ function getSavedHideDupes() {
 
 function saveHideDupes(val) {
   localStorage.setItem(HIDE_DUPES_STORAGE_KEY, String(val));
-}
-
-function priceLabel(n) {
-  return n ? '$'.repeat(n) : '—';
 }
 
 export default function RestaurantSearch({ onSelect, onClose }) {

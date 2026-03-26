@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
-const { autofill } = require('../lib/autofill');
 const { validateZipCode, searchWithSmartFill } = require('../lib/places');
 
 router.get('/search', async (req, res) => {
@@ -30,37 +29,59 @@ router.get('/search', async (req, res) => {
   }
 });
 
-router.get('/autofill', (req, res) => {
-  const { name } = req.query;
-  if (!name) return res.status(400).json({ error: 'name query param required' });
-  const data = autofill(name);
-  res.json(data);
-});
-
 router.get('/', async (req, res) => {
+  const { user } = req.query;
   try {
-    const result = await pool.query(`
-      SELECT
-        r.*,
-        COALESCE(
-          JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', t.id, 'label', t.label))
-          FILTER (WHERE t.id IS NOT NULL), '[]'
-        ) AS tags,
-        rq.avg_rating,
-        rq.rating_count
-      FROM restaurants r
-      LEFT JOIN tags t ON t.restaurant_id = r.id
-      LEFT JOIN (
+    let result;
+    if (user) {
+      result = await pool.query(`
         SELECT
-          restaurant_id,
-          ROUND(AVG(score)::numeric, 1) AS avg_rating,
-          COUNT(id)::int AS rating_count
-        FROM ratings
-        GROUP BY restaurant_id
-      ) rq ON rq.restaurant_id = r.id
-      GROUP BY r.id, rq.avg_rating, rq.rating_count
-      ORDER BY r.created_at DESC
-    `);
+          r.*,
+          COALESCE(
+            JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', t.id, 'label', t.label))
+            FILTER (WHERE t.id IS NOT NULL), '[]'
+          ) AS tags,
+          rq.avg_rating,
+          rq.rating_count,
+          ur.score AS user_rating
+        FROM restaurants r
+        LEFT JOIN tags t ON t.restaurant_id = r.id
+        LEFT JOIN (
+          SELECT
+            restaurant_id,
+            ROUND(AVG(score)::numeric, 1) AS avg_rating,
+            COUNT(id)::int AS rating_count
+          FROM ratings
+          GROUP BY restaurant_id
+        ) rq ON rq.restaurant_id = r.id
+        LEFT JOIN ratings ur ON ur.restaurant_id = r.id AND ur.rated_by = $1
+        GROUP BY r.id, rq.avg_rating, rq.rating_count, ur.score
+        ORDER BY r.created_at DESC
+      `, [user]);
+    } else {
+      result = await pool.query(`
+        SELECT
+          r.*,
+          COALESCE(
+            JSON_AGG(DISTINCT JSONB_BUILD_OBJECT('id', t.id, 'label', t.label))
+            FILTER (WHERE t.id IS NOT NULL), '[]'
+          ) AS tags,
+          rq.avg_rating,
+          rq.rating_count
+        FROM restaurants r
+        LEFT JOIN tags t ON t.restaurant_id = r.id
+        LEFT JOIN (
+          SELECT
+            restaurant_id,
+            ROUND(AVG(score)::numeric, 1) AS avg_rating,
+            COUNT(id)::int AS rating_count
+          FROM ratings
+          GROUP BY restaurant_id
+        ) rq ON rq.restaurant_id = r.id
+        GROUP BY r.id, rq.avg_rating, rq.rating_count
+        ORDER BY r.created_at DESC
+      `);
+    }
     res.json(result.rows);
   } catch (err) {
     console.error(err);

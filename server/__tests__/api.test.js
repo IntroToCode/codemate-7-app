@@ -113,29 +113,6 @@ describe('DELETE /api/restaurants/:id', () => {
   });
 });
 
-describe('GET /api/restaurants/autofill', () => {
-  test('returns autofill data for a known restaurant', async () => {
-    const res = await request(app).get('/api/restaurants/autofill?name=chipotle');
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('cuisine');
-    expect(res.body).toHaveProperty('price_range');
-    expect(res.body).toHaveProperty('address');
-    expect(res.body.cuisine).toBe('Mexican');
-  });
-
-  test('returns 400 if name query param is missing', async () => {
-    const res = await request(app).get('/api/restaurants/autofill');
-    expect(res.status).toBe(400);
-  });
-
-  test('returns default values for unknown restaurant', async () => {
-    const res = await request(app).get('/api/restaurants/autofill?name=unknownxyz123');
-    expect(res.status).toBe(200);
-    expect(res.body.cuisine).toBe('');
-    expect(res.body.price_range).toBe(2);
-  });
-});
-
 describe('POST /api/spins', () => {
   test('creates a spin and returns 201', async () => {
     const restaurant = makeRestaurant();
