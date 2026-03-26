@@ -510,6 +510,7 @@ body {
 /* ─── Admin overlay (non-admin view) ────────────────────────────────────── */
 .admin-content-wrap {
   position: relative;
+  min-height: 200px;
 }
 
 .admin-locked {

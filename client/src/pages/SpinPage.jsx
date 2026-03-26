@@ -11,11 +11,16 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function sevenDaysAgo() {
+  return Date.now() - 7 * 24 * 60 * 60 * 1000;
+}
+
 export default function SpinPage({ onSpin }) {
   const { userName, isAdmin, adminLoading } = useUser();
   const { tempDisabled, clearAll } = useTempDisable();
 
   const [allRestaurants, setAllRestaurants] = useState([]);
+  const [recentRestaurantIds, setRecentRestaurantIds] = useState(new Set());
   const [loadingRest, setLoadingRest] = useState(true);
   const [wheelRestaurants, setWheelRestaurants] = useState([]);
   const [spinning, setSpinning] = useState(false);
@@ -24,33 +29,52 @@ export default function SpinPage({ onSpin }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [excludeRecent, setExcludeRecent] = useState(true);
-  const [loadingSetting, setLoadingSetting] = useState(true);
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
 
   useEffect(() => {
-    fetch('/api/restaurants')
-      .then((r) => r.json())
-      .then((data) => {
-        const active = Array.isArray(data) ? data.filter((r) => r.active) : [];
+    if (!userName) return;
+
+    Promise.all([
+      fetch('/api/restaurants').then((r) => r.json()),
+      fetch(`/api/settings?user=${encodeURIComponent(userName)}`).then((r) => r.json()),
+      fetch('/api/spins?limit=200').then((r) => r.json()),
+    ])
+      .then(([restaurantData, settingsData, spinsData]) => {
+        const active = Array.isArray(restaurantData)
+          ? restaurantData.filter((r) => r.active)
+          : [];
+
+        const cutoff = sevenDaysAgo();
+        const recentIds = new Set(
+          Array.isArray(spinsData)
+            ? spinsData
+                .filter((s) => !s.is_vetoed && new Date(s.created_at).getTime() >= cutoff)
+                .map((s) => s.restaurant_id)
+            : []
+        );
+
+        const exclude = settingsData.exclude_recent_7_days ?? true;
+        setExcludeRecent(exclude);
         setAllRestaurants(active);
-        const initial = shuffleArray(active).slice(0, 8);
+        setRecentRestaurantIds(recentIds);
+
+        const initial = buildWheel(active, recentIds, exclude, new Set());
         setWheelRestaurants(initial);
       })
       .catch(() => {})
       .finally(() => setLoadingRest(false));
-  }, []);
-
-  useEffect(() => {
-    if (!userName) return;
-    fetch(`/api/settings?user=${encodeURIComponent(userName)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setExcludeRecent(data.exclude_recent_7_days);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingSetting(false));
   }, [userName]);
+
+  function buildWheel(active, recentIds, exclude, skipped) {
+    const candidates = active.filter((r) => !skipped.has(r.id));
+    if (!exclude || recentIds.size === 0) {
+      return shuffleArray(candidates).slice(0, 8);
+    }
+    const eligible = candidates.filter((r) => !recentIds.has(r.id));
+    const pool = eligible.length >= 2 ? eligible : candidates;
+    return shuffleArray(pool).slice(0, 8);
+  }
 
   const activeOnWheel = useCallback(() => {
     return allRestaurants.filter((r) => !tempDisabled.has(r.id));
@@ -60,6 +84,8 @@ export default function SpinPage({ onSpin }) {
     const newVal = e.target.checked;
     const oldVal = excludeRecent;
     setExcludeRecent(newVal);
+    const newWheel = buildWheel(allRestaurants, recentRestaurantIds, newVal, tempDisabled);
+    setWheelRestaurants(newWheel);
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -68,6 +94,8 @@ export default function SpinPage({ onSpin }) {
       });
       if (!res.ok) {
         setExcludeRecent(oldVal);
+        const revertWheel = buildWheel(allRestaurants, recentRestaurantIds, oldVal, tempDisabled);
+        setWheelRestaurants(revertWheel);
       }
     } catch {
       setExcludeRecent(oldVal);
@@ -93,7 +121,7 @@ export default function SpinPage({ onSpin }) {
       return;
     }
 
-    const pool = shuffleArray(available).slice(0, 8);
+    const pool = buildWheel(available, recentRestaurantIds, excludeRecent, new Set());
     setWheelRestaurants(pool);
 
     const entranceDuration = pool.length * 100 + 450;
@@ -156,7 +184,11 @@ export default function SpinPage({ onSpin }) {
   function handleSpinComplete() {
     setSpinning(false);
     setVetoing(false);
-    setResult(pendingResultRef.current);
+    const winner = pendingResultRef.current;
+    setResult(winner);
+    if (winner) {
+      setRecentRestaurantIds((prev) => new Set([...prev, winner.restaurant.id]));
+    }
     clearAll();
     spinInProgress.current = false;
     if (onSpin) onSpin();
@@ -218,13 +250,6 @@ export default function SpinPage({ onSpin }) {
             <span>Exclude restaurants visited in the last 7 days</span>
             {!adminLoading && !isAdmin && <span className="toggle-admin-note"> (Admin only)</span>}
           </label>
-
-          {tempDisabled.size > 0 && (
-            <p className="skip-notice">
-              ⏸️ {tempDisabled.size} restaurant{tempDisabled.size > 1 ? 's' : ''} skipped this spin
-              (set on the Restaurants page — clears after spin)
-            </p>
-          )}
         </div>
 
         {error && <div className="spin-error">{error}</div>}
