@@ -40,7 +40,7 @@ function shuffleArray(arr) {
 }
 
 function priceLabel(n) {
-  return n ? '$'.repeat(n) : '?';
+  return n ? '$'.repeat(n) : '—';
 }
 
 function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, segmentAngle, ballSpeed, wheelSpeed, duration) {
