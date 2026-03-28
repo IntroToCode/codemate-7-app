@@ -147,7 +147,18 @@ router.patch('/:id/toggle', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
+  const userId = req.headers['x-user-id'];
+  if (!userId) {
+    return res.status(401).json({ error: 'User ID is required.' });
+  }
   try {
+    const userCheck = await pool.query(
+      'SELECT role FROM user_profiles WHERE id = $1',
+      [userId]
+    );
+    if (userCheck.rows.length === 0 || userCheck.rows[0].role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can delete restaurants.' });
+    }
     const result = await pool.query(
       `DELETE FROM restaurants WHERE id = $1 RETURNING id`,
       [id]
