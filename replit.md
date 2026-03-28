@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (server: 117 tests, client: 69 tests)
+- **Testing**: Jest + Supertest (server: 119 tests, client: 69 tests)
 
 ## Project Structure
 ```
@@ -96,11 +96,12 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | POST | /api/ratings | Upsert user rating (1-5) |
 | POST | /api/users/login | Log in with first/last name |
 | POST | /api/users/register | Create new user profile |
+| GET | /api/users/all | List all profiles (for profile switcher) |
 | GET | /api/users/count | Get total user count |
 
 ## Running Tests
 ```bash
-cd server && npm test    # 117 server-side tests
+cd server && npm test    # 119 server-side tests
 cd client && npm test    # 69 client-side tests
 ```
 

@@ -118,6 +118,34 @@ describe('POST /api/users/login', () => {
   });
 });
 
+describe('GET /api/users/all', () => {
+  it('returns list of all profiles with id and names only', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        { id: UUID, first_name: 'Jane', last_name: 'Doe' },
+        { id: '22222222-2222-2222-2222-222222222222', first_name: 'John', last_name: 'Smith' },
+      ],
+    });
+
+    const res = await request(app).get('/api/users/all');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].first_name).toBe('Jane');
+    expect(res.body[1].first_name).toBe('John');
+    expect(res.body[0]).not.toHaveProperty('created_at');
+  });
+
+  it('returns empty array when no profiles exist', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/api/users/all');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+});
+
 describe('GET /api/users/count', () => {
   it('returns total user count', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [{ total: 5 }] });

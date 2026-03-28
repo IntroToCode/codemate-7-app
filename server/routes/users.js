@@ -59,6 +59,20 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.get('/all', async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name
+       FROM user_profiles
+       ORDER BY first_name, last_name`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('List users error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/count', async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT COUNT(*)::int AS total FROM user_profiles');
