@@ -529,6 +529,118 @@ body {
 .loading { padding: 40px; text-align: center; color: var(--text-muted); font-size: 1rem; }
 .empty-state { text-align: center; color: var(--text-muted); padding: 32px; }
 
+/* ─── Manage Admins ────────────────────────────────────────────────────── */
+.manage-admins-section {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.manage-admins-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.manage-admins-section h4 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px 0;
+}
+
+.admin-error {
+  font-size: 0.88rem;
+  padding: 8px 14px;
+  background: #fff0f0;
+  border: 1px solid #fcc;
+  border-radius: var(--radius-sm);
+}
+
+.admin-user-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.admin-user-item:hover {
+  background: #f0e8e0;
+}
+
+.admin-user-name {
+  font-weight: 600;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.you-badge {
+  font-weight: 400;
+  color: var(--teal);
+  font-size: 0.82rem;
+}
+
+.admin-user-item .btn {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.admin-user-item .btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.promote-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.promote-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-select {
+  flex: 1;
+  max-width: 260px;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--transition);
+  cursor: pointer;
+  appearance: auto;
+}
+
+.admin-select:focus {
+  border-color: var(--orange);
+}
+
 /* ─── Admin read-only ───────────────────────────────────────────────────── */
 .row-readonly { opacity: 0.85; }
 .td-readonly { color: var(--text-muted); font-size: 0.9rem; }
