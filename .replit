@@ -40,7 +40,7 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["bash", "-c", "cd server && node server.js & cd client && npm run build && npx serve -s dist -l 5000"]
+run = ["bash", "-c", "cd client && npm run build && cd ../server && node server.js"]
 build = ["bash", "-c", "cd client && npm install && npm run build && cd ../server && npm install"]
 
 [postMerge]
