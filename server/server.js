@@ -9,7 +9,6 @@ const restaurantsRouter = require('./routes/restaurants');
 const spinsRouter = require('./routes/spins');
 const tagsRouter = require('./routes/tags');
 const ratingsRouter = require('./routes/ratings');
-const usersRouter = require('./routes/users');
 
 const app = express();
 
@@ -38,7 +37,6 @@ app.use('/api/restaurants', restaurantsRouter);
 app.use('/api/spins', spinsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/ratings', ratingsRouter);
-app.use('/api/users', usersRouter);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));

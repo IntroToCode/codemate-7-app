@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import RecentHits from './RecentHits';
-import ProfileSwitcher from './ProfileSwitcher';
 
 export default function Layout({ children, spinRefresh }) {
-  const { userName, logout } = useUser();
+  const { userName, saveName } = useUser();
 
   return (
     <div className="app-layout">
@@ -21,12 +20,11 @@ export default function Layout({ children, spinRefresh }) {
         </nav>
         <div className="header-user">
           <span className="user-chip">👤 {userName}</span>
-          <ProfileSwitcher />
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => logout()}
-            title="Log out"
-          >🚪</button>
+            onClick={() => { localStorage.removeItem('lr_username'); saveName(''); }}
+            title="Change name"
+          >✏️</button>
         </div>
       </header>
 

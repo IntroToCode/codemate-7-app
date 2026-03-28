@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (server: 119 tests, client: 69 tests)
+- **Testing**: Jest + Supertest (server: 100 tests, client: 69 tests)
 
 ## Project Structure
 ```
@@ -58,7 +58,6 @@ server/
     places.test.js       - Unit tests for Places API utilities
     duplicates.test.js   - Unit tests for duplicate detection
     search-api.test.js   - Integration tests for Places search endpoint
-    users.test.js        - Tests for user profile login/register/count endpoints
 
 client/
   src/__tests__/
@@ -75,7 +74,6 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
-- **user_profiles**: id (UUID), first_name, last_name, created_at (unique per first+last name pair)
 
 ## API Routes
 | Method | Path | Description |
@@ -94,14 +92,10 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | POST | /api/tags | Add tag to restaurant |
 | DELETE | /api/tags/:id | Remove tag |
 | POST | /api/ratings | Upsert user rating (1-5) |
-| POST | /api/users/login | Log in with first/last name |
-| POST | /api/users/register | Create new user profile |
-| GET | /api/users/all | List all profiles (for profile switcher) |
-| GET | /api/users/count | Get total user count |
 
 ## Running Tests
 ```bash
-cd server && npm test    # 119 server-side tests
+cd server && npm test    # 100 server-side tests
 cd client && npm test    # 69 client-side tests
 ```
 
@@ -111,7 +105,7 @@ cd client && npm test    # 69 client-side tests
 - `google_place_api_key` - Google Places API key for restaurant search
 
 ## Key Design Decisions
-- **Identity**: User profiles stored in `user_profiles` table (first + last name, no password). Display name (`"First Last"`) stored in localStorage and used as identity for `created_by`/`spun_by`/`rated_by` fields. Users can log in to an existing profile or create a new one.
+- **Identity**: Username stored in localStorage, matched against `added_by`/`created_by` fields. No passwords.
 - **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.
