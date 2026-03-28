@@ -153,3 +153,27 @@ add roulette sound effect.
 **Author:** Alan
 
 ---
+
+### 3/28/2026
+
+**Prompt:** "Why is it everytime the app refresh, it would throw a port needs to be open error"
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "undo this change"
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "now update the prompts.md with all latest prompts"
+
+**Author:** Alan
+
+---
