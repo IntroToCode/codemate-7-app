@@ -17,7 +17,6 @@ app.use(cors());
 app.use(express.json());
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
-app.use(express.static(clientDist));
 
 app.get('/api/health', async (req, res) => {
   try {
@@ -39,6 +38,12 @@ app.use('/api/spins', spinsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/ratings', ratingsRouter);
 app.use('/api/settings', settingsRouter);
+
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+app.use(express.static(clientDist));
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
