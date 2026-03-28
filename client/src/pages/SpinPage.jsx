@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import RouletteWheel from '../components/RouletteWheel';
 
-import { shuffleArray, priceLabel } from '../components/rouletteUtils.jsx';
+import { shuffleArray, priceLabel, filterRestaurants } from '../components/rouletteUtils.jsx';
 
 const FOOD_EMOJIS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
 
@@ -26,6 +26,8 @@ export default function SpinPage({ onSpin }) {
   const [excludeRecent, setExcludeRecent] = useState(true);
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
+  const [cuisineFilter, setCuisineFilter] = useState('');
+  const [priceFilter, setPriceFilter] = useState(null);
 
   useEffect(() => {
     fetch('/api/restaurants')
@@ -40,9 +42,19 @@ export default function SpinPage({ onSpin }) {
       .finally(() => setLoadingRest(false));
   }, []);
 
+  const cuisineOptions = [...new Set(
+    allRestaurants.map((r) => r.cuisine).filter(Boolean)
+  )].sort();
+
   const activeOnWheel = useCallback(() => {
-    return allRestaurants.filter((r) => !tempDisabled.has(r.id));
-  }, [allRestaurants, tempDisabled]);
+    const afterFilters = filterRestaurants(allRestaurants, cuisineFilter, priceFilter);
+    return afterFilters.filter((r) => !tempDisabled.has(r.id));
+  }, [allRestaurants, tempDisabled, cuisineFilter, priceFilter]);
+
+  function clearFilters() {
+    setCuisineFilter('');
+    setPriceFilter(null);
+  }
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
     if (spinInProgress.current) return;
@@ -138,6 +150,8 @@ export default function SpinPage({ onSpin }) {
   }
 
   const available = activeOnWheel();
+  const filtersActive = cuisineFilter !== '' || priceFilter !== null;
+  const noMatch = !loadingRest && filtersActive && available.length === 0;
   const tooFew = !loadingRest && available.length < 2;
 
   return (
@@ -157,7 +171,58 @@ export default function SpinPage({ onSpin }) {
         )}
 
         <div className="spin-controls">
-          {tooFew ? (
+          {!loadingRest && allRestaurants.length >= 2 && (
+            <div className="spin-filters">
+              <div className="spin-filter-row">
+                <label className="spin-filter-label" htmlFor="cuisine-select">Cuisine</label>
+                <select
+                  id="cuisine-select"
+                  className="spin-filter-select"
+                  value={cuisineFilter}
+                  onChange={(e) => setCuisineFilter(e.target.value)}
+                  disabled={spinning}
+                >
+                  <option value="">All cuisines</option>
+                  {cuisineOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="spin-filter-row">
+                <label className="spin-filter-label">Price</label>
+                <div className="spin-price-btns">
+                  {[null, 1, 2, 3].map((p) => (
+                    <button
+                      key={p ?? 'all'}
+                      className={`spin-price-btn${priceFilter === p ? ' active' : ''}`}
+                      onClick={() => setPriceFilter(p)}
+                      disabled={spinning}
+                      aria-pressed={priceFilter === p}
+                    >
+                      {p === null ? 'All' : priceLabel(p)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filtersActive && (
+                <button
+                  className="spin-filter-clear"
+                  onClick={clearFilters}
+                  disabled={spinning}
+                >
+                  ✕ Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {noMatch ? (
+            <p className="spin-no-match">
+              😕 No restaurants match your filters!
+            </p>
+          ) : tooFew ? (
             <p className="roulette-min-notice">
               🍽️ Add at least 2 restaurants to spin the wheel!
             </p>
@@ -165,7 +230,7 @@ export default function SpinPage({ onSpin }) {
             <button
               className="btn btn-spin"
               onClick={() => doSpin(false)}
-              disabled={spinning || vetoing || tooFew}
+              disabled={spinning || vetoing}
             >
               {spinning && !vetoing
                 ? '🎡 Spinning…'

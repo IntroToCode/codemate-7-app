@@ -401,6 +401,93 @@ body {
 
 .spin-controls { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 
+.spin-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.spin-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.spin-filter-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-width: 52px;
+}
+
+.spin-filter-select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.spin-filter-select:focus { outline: none; border-color: var(--teal); }
+.spin-filter-select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spin-price-btns { display: flex; gap: 6px; }
+
+.spin-price-btn {
+  padding: 5px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.spin-price-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.spin-price-btn.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+.spin-price-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spin-filter-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color var(--transition), background var(--transition);
+}
+.spin-filter-clear:hover:not(:disabled) { color: var(--text); background: var(--bg); }
+.spin-filter-clear:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spin-no-match {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  text-align: center;
+}
+
 .toggle-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-muted); cursor: pointer; }
 .toggle-label input { accent-color: var(--teal); width: 16px; height: 16px; cursor: pointer; }
 
