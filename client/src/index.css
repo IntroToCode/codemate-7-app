@@ -195,6 +195,35 @@ body {
 }
 .name-entry-input:focus { border-color: var(--orange); }
 
+.name-entry-select {
+  display: block;
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  outline: none;
+  background: white;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+.name-entry-select:focus { border-color: var(--orange); }
+
+.name-entry-loading,
+.name-entry-empty {
+  padding: 20px 14px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
 .mode-tabs {
   display: flex;
   gap: 0;
