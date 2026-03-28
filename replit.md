@@ -23,10 +23,10 @@ client/
       RecentHits.jsx     - Sidebar: last 5 non-vetoed spins
       RestaurantSearch.jsx - Google Places zip code search + add flow
       StarRating.jsx     - Interactive/read-only star rating component
-      RouletteWheel.jsx  - Casino SVG roulette wheel with spinning base + ball animation + Web Audio sounds
+      RouletteWheel.jsx  - Casino SVG roulette wheel with spinning base + fixed arrow pointer + Web Audio sounds
       rouletteUtils.jsx  - Shared utility functions (segment paths, clamp, shuffle, stop angle math)
     pages/
-      SpinPage.jsx       - Casino roulette wheel with animated ball + veto
+      SpinPage.jsx       - Casino roulette wheel with arrow pointer + veto
       RestaurantList.jsx - Add/edit/delete restaurants, tags, ratings
       AdminDashboard.jsx - Table-based availability toggler
       SpinLog.jsx        - Full spin history log
