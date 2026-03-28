@@ -3,10 +3,7 @@ import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import StarRating from '../components/StarRating';
 import RestaurantSearch from '../components/RestaurantSearch';
-
-function priceLabel(n) {
-  return n ? '$'.repeat(n) : '—';
-}
+import { priceLabel } from '../components/rouletteUtils.jsx';
 
 export default function RestaurantList() {
   const { userName } = useUser();
@@ -23,7 +20,7 @@ export default function RestaurantList() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetch('/api/restaurants');
+      const res = await fetch(`/api/restaurants?user=${encodeURIComponent(userName)}`);
       setRestaurants(await res.json());
     } finally {
       setLoading(false);
@@ -33,7 +30,7 @@ export default function RestaurantList() {
   useEffect(() => { load(); }, []);
 
   async function handleSearchSelect(place) {
-    await fetch('/api/restaurants', {
+    const res = await fetch('/api/restaurants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,6 +42,11 @@ export default function RestaurantList() {
         created_by: userName,
       }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to add restaurant');
+      return;
+    }
     setShowSearch(false);
     load();
   }
@@ -52,7 +54,7 @@ export default function RestaurantList() {
   async function handleManualAdd(e) {
     e.preventDefault();
     if (!addForm.name.trim()) return;
-    await fetch('/api/restaurants', {
+    const res = await fetch('/api/restaurants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -60,6 +62,11 @@ export default function RestaurantList() {
         created_by: userName,
       }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to add restaurant');
+      return;
+    }
     setAddForm({ name: '', cuisine: '', price_range: '', address: '' });
     setShowManualAdd(false);
     load();
@@ -71,49 +78,79 @@ export default function RestaurantList() {
   }
 
   async function handleSaveEdit(id) {
-    await fetch(`/api/restaurants/${id}`, {
+    const res = await fetch(`/api/restaurants/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to save changes');
+      return;
+    }
     setEditId(null);
     load();
   }
 
   async function handleDelete(id) {
     if (!window.confirm('Delete this restaurant?')) return;
-    await fetch(`/api/restaurants/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/restaurants/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to delete restaurant');
+      return;
+    }
     load();
   }
 
   async function handleToggle(id) {
-    await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    const res = await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to toggle restaurant');
+      return;
+    }
     load();
   }
 
   async function handleAddTag(restaurantId) {
     const label = newTag[restaurantId];
     if (!label?.trim()) return;
-    await fetch('/api/tags', {
+    const res = await fetch('/api/tags', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restaurant_id: restaurantId, label: label.trim() }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to add tag');
+      return;
+    }
     setNewTag((t) => ({ ...t, [restaurantId]: '' }));
     load();
   }
 
   async function handleDeleteTag(tagId) {
-    await fetch(`/api/tags/${tagId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/tags/${tagId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to delete tag');
+      return;
+    }
     load();
   }
 
   async function handleRate(restaurantId, score) {
-    await fetch('/api/ratings', {
+    const res = await fetch('/api/ratings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ restaurant_id: restaurantId, rated_by: userName, score }),
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to save rating');
+      return;
+    }
     load();
   }
 
@@ -225,7 +262,7 @@ export default function RestaurantList() {
                   </div>
                   <div className="card-rating">
                     <StarRating
-                      value={parseFloat(r.avg_rating) || 0}
+                      value={r.user_rating || 0}
                       onRate={(score) => handleRate(r.id, score)}
                     />
                     {r.avg_rating && (

@@ -134,10 +134,10 @@ describe('shuffleArray', () => {
 });
 
 describe('priceLabel', () => {
-  test('returns ? for falsy values', () => {
-    expect(priceLabel(0)).toBe('?');
-    expect(priceLabel(null)).toBe('?');
-    expect(priceLabel(undefined)).toBe('?');
+  test('returns — for falsy values', () => {
+    expect(priceLabel(0)).toBe('—');
+    expect(priceLabel(null)).toBe('—');
+    expect(priceLabel(undefined)).toBe('—');
   });
 
   test('returns correct number of $ signs', () => {

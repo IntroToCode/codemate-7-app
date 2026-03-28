@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import StarRating from '../components/StarRating';
-
-function priceLabel(n) {
-  return n ? '$'.repeat(n) : '—';
-}
+import { priceLabel } from '../components/rouletteUtils.jsx';
 
 export default function AdminDashboard() {
   const { userName } = useUser();
@@ -24,7 +21,12 @@ export default function AdminDashboard() {
   useEffect(() => { load(); }, []);
 
   async function handleToggle(id) {
-    await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    const res = await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Failed to toggle restaurant');
+      return;
+    }
     load();
   }
 

@@ -12,9 +12,9 @@ export default function RecentHits({ refresh }) {
 
   async function load() {
     try {
-      const res = await fetch('/api/spins?limit=5');
+      const res = await fetch('/api/spins?limit=5&exclude_vetoed=true');
       const data = await res.json();
-      setHits(data.filter((s) => !s.is_vetoed).slice(0, 5));
+      setHits(data);
     } catch {
       /* silent */
     }

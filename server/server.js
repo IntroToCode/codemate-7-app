@@ -9,6 +9,7 @@ const restaurantsRouter = require('./routes/restaurants');
 const spinsRouter = require('./routes/spins');
 const tagsRouter = require('./routes/tags');
 const ratingsRouter = require('./routes/ratings');
+const usersRouter = require('./routes/users');
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/restaurants', restaurantsRouter);
 app.use('/api/spins', spinsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/ratings', ratingsRouter);
+app.use('/api/users', usersRouter);
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
@@ -45,11 +47,9 @@ app.get('*', (req, res) => {
 async function startServer() {
   await migrate();
 
-  const PORTS = [3001, 5000];
-  PORTS.forEach((port) => {
-    app.listen(port, '0.0.0.0', () => {
-      console.log(`Server listening on port ${port}`);
-    });
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server listening on port ${PORT}`);
   });
 }
 
