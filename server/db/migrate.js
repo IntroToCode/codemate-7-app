@@ -37,6 +37,16 @@ async function migrate() {
       INSERT INTO app_settings (key, value) VALUES ('admin_username', '')
       ON CONFLICT (key) DO NOTHING
     `);
+    const adminRow = await pool.query(
+      "SELECT value FROM app_settings WHERE key = 'admin_username'"
+    );
+    const legacyAdmin = adminRow.rows[0]?.value || '';
+    if (legacyAdmin) {
+      await pool.query(
+        `INSERT INTO admins (username, promoted_by) VALUES ($1, $2) ON CONFLICT (username) DO NOTHING`,
+        [legacyAdmin, legacyAdmin]
+      );
+    }
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);

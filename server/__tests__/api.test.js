@@ -246,12 +246,14 @@ describe('POST /api/spins/:id/veto', () => {
 
 describe('GET /api/settings', () => {
   test('returns settings with is_admin false for non-admin user', async () => {
-    mockPool.query.mockResolvedValueOnce({
-      rows: [
-        { key: 'exclude_recent_7_days', value: 'true' },
-        { key: 'admin_username', value: 'Alice' },
-      ],
-    });
+    mockPool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { key: 'exclude_recent_7_days', value: 'true' },
+          { key: 'admin_username', value: 'Alice' },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(app).get('/api/settings?user=Bob');
     expect(res.status).toBe(200);
     expect(res.body.exclude_recent_7_days).toBe(true);
@@ -259,24 +261,28 @@ describe('GET /api/settings', () => {
   });
 
   test('returns settings with is_admin true for admin user', async () => {
-    mockPool.query.mockResolvedValueOnce({
-      rows: [
-        { key: 'exclude_recent_7_days', value: 'true' },
-        { key: 'admin_username', value: 'Alice' },
-      ],
-    });
+    mockPool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { key: 'exclude_recent_7_days', value: 'true' },
+          { key: 'admin_username', value: 'Alice' },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] });
     const res = await request(app).get('/api/settings?user=Alice');
     expect(res.status).toBe(200);
     expect(res.body.is_admin).toBe(true);
   });
 
   test('returns exclude_recent_7_days as false when setting is false', async () => {
-    mockPool.query.mockResolvedValueOnce({
-      rows: [
-        { key: 'exclude_recent_7_days', value: 'false' },
-        { key: 'admin_username', value: 'Alice' },
-      ],
-    });
+    mockPool.query
+      .mockResolvedValueOnce({
+        rows: [
+          { key: 'exclude_recent_7_days', value: 'false' },
+          { key: 'admin_username', value: 'Alice' },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] });
     const res = await request(app).get('/api/settings?user=Alice');
     expect(res.status).toBe(200);
     expect(res.body.exclude_recent_7_days).toBe(false);
@@ -286,7 +292,7 @@ describe('GET /api/settings', () => {
 describe('PUT /api/settings', () => {
   test('admin can update exclude_recent_7_days', async () => {
     mockPool.query
-      .mockResolvedValueOnce({ rows: [{ value: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .put('/api/settings')
@@ -296,7 +302,7 @@ describe('PUT /api/settings', () => {
   });
 
   test('non-admin cannot update settings', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [{ value: 'Alice' }] });
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .put('/api/settings')
       .send({ user: 'Bob', exclude_recent_7_days: false });
@@ -322,6 +328,7 @@ describe('POST /api/settings/register', () => {
   test('first user becomes admin', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [{ value: '' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/settings/register')
@@ -331,7 +338,9 @@ describe('POST /api/settings/register', () => {
   });
 
   test('subsequent user is not admin', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [{ value: 'Alice' }] });
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ value: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .post('/api/settings/register')
       .send({ user: 'Bob' });
@@ -343,6 +352,114 @@ describe('POST /api/settings/register', () => {
     const res = await request(app)
       .post('/api/settings/register')
       .send({});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /api/settings/admins', () => {
+  test('returns list of admins', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [{ username: 'Alice', promoted_by: 'Alice', created_at: new Date().toISOString() }],
+    });
+    const res = await request(app).get('/api/settings/admins');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body[0].username).toBe('Alice');
+  });
+});
+
+describe('GET /api/settings/known-users', () => {
+  test('returns aggregated list of known users', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [{ username: 'Alice' }, { username: 'Bob' }, { username: 'Charlie' }],
+    });
+    const res = await request(app).get('/api/settings/known-users');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(['Alice', 'Bob', 'Charlie']);
+  });
+});
+
+describe('POST /api/settings/admins/promote', () => {
+  test('admin can promote a user', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/admins/promote')
+      .send({ user: 'Alice', target: 'Bob' });
+    expect(res.status).toBe(200);
+    expect(res.body.promoted).toBe('Bob');
+  });
+
+  test('non-admin cannot promote', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/admins/promote')
+      .send({ user: 'Bob', target: 'Charlie' });
+    expect(res.status).toBe(403);
+  });
+
+  test('returns 409 if target is already admin', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [{ username: 'Bob' }] });
+    const res = await request(app)
+      .post('/api/settings/admins/promote')
+      .send({ user: 'Alice', target: 'Bob' });
+    expect(res.status).toBe(409);
+  });
+
+  test('returns 400 if user or target missing', async () => {
+    const res = await request(app)
+      .post('/api/settings/admins/promote')
+      .send({ user: 'Alice' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/settings/admins/demote', () => {
+  test('admin can demote another admin', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [{ username: 'Bob' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/admins/demote')
+      .send({ user: 'Alice', target: 'Bob' });
+    expect(res.status).toBe(200);
+    expect(res.body.demoted).toBe('Bob');
+  });
+
+  test('cannot demote yourself', async () => {
+    const res = await request(app)
+      .post('/api/settings/admins/demote')
+      .send({ user: 'Alice', target: 'Alice' });
+    expect(res.status).toBe(400);
+  });
+
+  test('non-admin cannot demote', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/admins/demote')
+      .send({ user: 'Bob', target: 'Alice' });
+    expect(res.status).toBe(403);
+  });
+
+  test('returns 404 if target is not an admin', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ username: 'Alice' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .post('/api/settings/admins/demote')
+      .send({ user: 'Alice', target: 'Charlie' });
+    expect(res.status).toBe(404);
+  });
+
+  test('returns 400 if user or target missing', async () => {
+    const res = await request(app)
+      .post('/api/settings/admins/demote')
+      .send({ user: 'Alice' });
     expect(res.status).toBe(400);
   });
 });

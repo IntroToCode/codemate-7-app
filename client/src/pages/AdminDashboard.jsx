@@ -6,6 +6,133 @@ function priceLabel(n) {
   return n ? '$'.repeat(n) : '—';
 }
 
+function ManageAdmins({ userName }) {
+  const [admins, setAdmins] = useState([]);
+  const [knownUsers, setKnownUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  async function loadAdmins() {
+    try {
+      setError('');
+      const [adminsRes, usersRes] = await Promise.all([
+        fetch('/api/settings/admins'),
+        fetch('/api/settings/known-users'),
+      ]);
+      if (!adminsRes.ok || !usersRes.ok) {
+        setError('Failed to load admin data.');
+        return;
+      }
+      const adminsData = await adminsRes.json();
+      const usersData = await usersRes.json();
+      setAdmins(adminsData);
+      const adminUsernames = new Set(adminsData.map(a => a.username));
+      const nonAdminUsers = usersData.filter(u => !adminUsernames.has(u));
+      setKnownUsers(nonAdminUsers);
+      setSelectedUser(nonAdminUsers[0] || '');
+    } catch {
+      setError('Failed to load admin data.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadAdmins(); }, []);
+
+  async function handlePromote() {
+    if (!selectedUser) return;
+    try {
+      setError('');
+      const res = await fetch('/api/settings/admins/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userName, target: selectedUser }),
+      });
+      if (res.ok) {
+        loadAdmins();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to promote user.');
+      }
+    } catch {
+      setError('Failed to promote user.');
+    }
+  }
+
+  async function handleDemote(target) {
+    try {
+      setError('');
+      const res = await fetch('/api/settings/admins/demote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: userName, target }),
+      });
+      if (res.ok) {
+        loadAdmins();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to demote user.');
+      }
+    } catch {
+      setError('Failed to demote user.');
+    }
+  }
+
+  if (loading) return <div className="loading">Loading admins…</div>;
+
+  return (
+    <div className="manage-admins-section">
+      <h3>👥 Manage Admins</h3>
+
+      {error && <p className="admin-error" style={{ color: '#e53e3e', marginBottom: '0.5rem' }}>{error}</p>}
+
+      <div className="admin-list">
+        <h4>Current Admins</h4>
+        {admins.length === 0 && <p className="empty-state">No admins configured.</p>}
+        <ul className="admin-user-list">
+          {admins.map(admin => (
+            <li key={admin.username} className="admin-user-item">
+              <span className="admin-user-name">
+                {admin.username}
+                {admin.username === userName && <span className="you-badge"> (you)</span>}
+              </span>
+              <button
+                className="btn btn-sm btn-ghost"
+                disabled={admin.username === userName}
+                onClick={() => handleDemote(admin.username)}
+                title={admin.username === userName ? 'You cannot demote yourself' : `Demote ${admin.username}`}
+              >
+                🚫 Demote
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {knownUsers.length > 0 && (
+        <div className="promote-section">
+          <h4>Promote User to Admin</h4>
+          <div className="promote-controls">
+            <select
+              value={selectedUser}
+              onChange={e => setSelectedUser(e.target.value)}
+              className="admin-select"
+            >
+              {knownUsers.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+            <button className="btn btn-sm btn-primary" onClick={handlePromote}>
+              ✅ Promote
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const { userName, isAdmin, adminName, adminLoading } = useUser();
   const [restaurants, setRestaurants] = useState([]);
@@ -41,6 +168,8 @@ export default function AdminDashboard() {
           </p>
         )}
       </div>
+
+      {isAdmin && <ManageAdmins userName={userName} />}
 
       <div className="admin-content-wrap">
         <div className={`admin-table-wrap ${!isAdmin ? 'admin-locked' : ''}`}>

@@ -7,7 +7,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
 - **Backend**: Express.js, runs on port 3001 and 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
-- **Testing**: Jest + Supertest (server: 100 tests, client: 69 tests)
+- **Testing**: Jest + Supertest (server: 127 tests, client: 78 tests), Playwright E2E
 
 ## Project Structure
 ```
@@ -74,6 +74,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
+- **admins**: username (PK), promoted_by, created_at — supports multiple admins
 
 ## API Routes
 | Method | Path | Description |
@@ -92,11 +93,15 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | POST | /api/tags | Add tag to restaurant |
 | DELETE | /api/tags/:id | Remove tag |
 | POST | /api/ratings | Upsert user rating (1-5) |
+| GET | /api/settings/admins | List current admins |
+| GET | /api/settings/known-users | List all known users (aggregated) |
+| POST | /api/settings/admins/promote | Promote user to admin |
+| POST | /api/settings/admins/demote | Demote admin (no self-demote) |
 
 ## Running Tests
 ```bash
-cd server && npm test    # 100 server-side tests
-cd client && npm test    # 69 client-side tests
+cd server && npm test    # 127 server-side tests
+cd client && npm test    # 78 client-side tests
 ```
 
 ## Environment Variables
