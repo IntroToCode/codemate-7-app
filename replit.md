@@ -5,7 +5,7 @@ A full-stack team lunch-picker app. Teams spin a wheel to randomly select a rest
 
 ## Architecture
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
-- **Backend**: Express.js, runs on port 3001 and 5000
+- **Backend**: Express.js, runs on port 5000
 - **Database**: PostgreSQL (Replit built-in), connected via `DATABASE_URL`
 - **Testing**: Jest + Supertest (server: 119 tests, client: 69 tests)
 

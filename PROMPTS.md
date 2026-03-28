@@ -265,3 +265,43 @@ add roulette sound effect.
 **Author:** Alan
 
 ---
+
+### 3/28/2026
+
+**Prompt:** "restart the preview app session and diagnose for errors"
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "restart the app and server to see if error still happens"
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "why does it show this?" [Attached screenshot of "Hmm... We couldn't reach this app" error page]
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "will it be a problem when i host it later?"
+
+**Author:** Alan
+
+---
+
+### 3/28/2026
+
+**Prompt:** "update prompts.md with the latest prompts"
+
+**Author:** Alan
+
+---
