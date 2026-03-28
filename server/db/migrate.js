@@ -51,6 +51,17 @@ async function migrate() {
       VALUES ('admin_password', 'iloveboba')
       ON CONFLICT (key) DO NOTHING;
     `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='user_profiles' AND column_name='password'
+        ) THEN
+          ALTER TABLE user_profiles ADD COLUMN password VARCHAR(255);
+        END IF;
+      END $$;
+    `);
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);

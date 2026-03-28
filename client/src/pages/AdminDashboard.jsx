@@ -4,7 +4,7 @@ import StarRating from '../components/StarRating';
 import { priceLabel } from '../components/rouletteUtils.jsx';
 
 export default function AdminDashboard() {
-  const { userName, userId, userRole, updateRole } = useUser();
+  const { userName, userId, userRole, updateRole, logout } = useUser();
   const [restaurants, setRestaurants] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,6 +16,9 @@ export default function AdminDashboard() {
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [pwMessage, setPwMessage] = useState('');
+  const [resetPasswordUserId, setResetPasswordUserId] = useState(null);
+  const [resetNewPw, setResetNewPw] = useState('');
+  const [resetPwMessage, setResetPwMessage] = useState('');
 
   async function loadRestaurants() {
     try {
@@ -92,6 +95,61 @@ export default function AdminDashboard() {
     loadUsers();
   }
 
+  async function handleDeleteUser(targetUserId) {
+    const user = users.find((u) => u.id === targetUserId);
+    const name = user ? `${user.first_name} ${user.last_name}` : 'this user';
+    if (!window.confirm(`Are you sure you want to delete ${name}'s profile? This cannot be undone.`)) return;
+
+    try {
+      const res = await fetch(`/api/users/${targetUserId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to delete user');
+        return;
+      }
+      if (targetUserId === userId) {
+        logout();
+        return;
+      }
+      loadUsers();
+    } catch (err) {
+      alert('Failed to delete user. Please try again.');
+    }
+  }
+
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    setResetPwMessage('');
+    if (!resetNewPw || resetNewPw.length < 4) {
+      setResetPwMessage('Password must be at least 4 characters.');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/users/${resetPasswordUserId}/admin-reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword, newPassword: resetNewPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetPwMessage(data.error || 'Failed to reset password.');
+        return;
+      }
+      setResetPwMessage('Password reset successfully!');
+      setResetNewPw('');
+      setTimeout(() => {
+        setResetPasswordUserId(null);
+        setResetPwMessage('');
+      }, 1500);
+    } catch (err) {
+      setResetPwMessage('Network error. Please try again.');
+    }
+  }
+
   async function handleChangePassword(e) {
     e.preventDefault();
     setPwMessage('');
@@ -159,13 +217,13 @@ export default function AdminDashboard() {
             className={`btn btn-sm ${activeTab === 'users' ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setActiveTab('users')}
           >
-            👥 User Roles
+            👥 Users
           </button>
           <button
             className="btn btn-sm btn-ghost"
             onClick={() => setShowChangePassword(!showChangePassword)}
           >
-            🔑 Change Password
+            🔑 Change Admin Password
           </button>
           <button
             className="btn btn-sm btn-danger"
@@ -270,15 +328,16 @@ export default function AdminDashboard() {
       {activeTab === 'users' && (
         <>
           <p className="page-sub">
-            Manage user roles. Admins can delete restaurants; guests cannot.
+            Manage user roles, reset passwords, and remove profiles.
           </p>
           <div className="admin-table-wrap">
             <table className="admin-table">
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Current Role</th>
-                  <th>Action</th>
+                  <th>Role</th>
+                  <th>Password</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -294,20 +353,71 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td>
-                      {u.role === 'guest' ? (
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleRoleChange(u.id, 'admin')}
-                        >
-                          Promote to Admin
-                        </button>
-                      ) : (
+                      <span className={`badge ${u.has_password ? 'badge-active' : 'badge-inactive'}`}>
+                        {u.has_password ? '✅ Set' : '⚠️ Not set'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="admin-user-actions">
+                        {u.role === 'guest' ? (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleRoleChange(u.id, 'admin')}
+                          >
+                            Promote
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleRoleChange(u.id, 'guest')}
+                          >
+                            Demote
+                          </button>
+                        )}
                         <button
                           className="btn btn-ghost btn-sm"
-                          onClick={() => handleRoleChange(u.id, 'guest')}
+                          onClick={() => {
+                            setResetPasswordUserId(resetPasswordUserId === u.id ? null : u.id);
+                            setResetNewPw('');
+                            setResetPwMessage('');
+                          }}
                         >
-                          Demote to Guest
+                          🔑 Reset PW
                         </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDeleteUser(u.id)}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                      {resetPasswordUserId === u.id && (
+                        <form className="reset-password-inline" onSubmit={handleResetPassword}>
+                          <input
+                            className="form-input form-input-sm"
+                            type="password"
+                            placeholder="New password (min 4 chars)"
+                            value={resetNewPw}
+                            onChange={(e) => setResetNewPw(e.target.value)}
+                            autoFocus
+                            minLength={4}
+                          />
+                          {resetPwMessage && (
+                            <span className={resetPwMessage.includes('successfully') ? 'success-text' : 'error-text'} style={{ fontSize: '0.8rem' }}>
+                              {resetPwMessage}
+                            </span>
+                          )}
+                          <div className="admin-user-actions" style={{ marginTop: '4px' }}>
+                            <button type="submit" className="btn btn-primary btn-sm">Set</button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => { setResetPasswordUserId(null); setResetNewPw(''); setResetPwMessage(''); }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
                       )}
                     </td>
                   </tr>

@@ -75,7 +75,7 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
-- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default guest), created_at (unique per first+last name pair)
+- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default guest), password (nullable), created_at (unique per first+last name pair)
 - **admin_settings**: key (VARCHAR PK), value — stores admin_password (default "iloveboba")
 
 ## API Routes
@@ -95,14 +95,18 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | POST | /api/tags | Add tag to restaurant |
 | DELETE | /api/tags/:id | Remove tag |
 | POST | /api/ratings | Upsert user rating (1-5) |
-| POST | /api/users/login | Log in with first/last name |
-| POST | /api/users/register | Create new user profile |
-| GET | /api/users/all | List all profiles (for profile switcher) |
+| POST | /api/users/login | Log in with first/last name + password |
+| POST | /api/users/register | Create new user profile (requires password) |
+| POST | /api/users/set-password | Set initial password for existing users without one |
+| POST | /api/users/change-user-password | Change own password (requires current password) |
+| GET | /api/users/all | List all profiles with role and has_password flag |
 | GET | /api/users/count | Get total user count |
 | GET | /api/users/:id/role | Get user role |
 | POST | /api/users/admin-login | Verify admin password |
 | POST | /api/users/admin-change-password | Change admin password |
 | PATCH | /api/users/:id/role | Update user role (admin/guest) |
+| DELETE | /api/users/:id | Delete user profile (admin only) |
+| POST | /api/users/:id/admin-reset-password | Admin reset user password |
 
 ## Running Tests
 ```bash
@@ -116,8 +120,8 @@ cd client && npm test    # 69 client-side tests
 - `google_place_api_key` - Google Places API key for restaurant search
 
 ## Key Design Decisions
-- **Identity**: User profiles stored in `user_profiles` table (first + last name, role). Display name (`"First Last"`) stored in localStorage and used as identity for `created_by`/`spun_by`/`rated_by` fields. Users can log in to an existing profile or create a new one.
-- **Admin system**: Admin dashboard gated by a shared admin password (default "iloveboba", changeable). Admins can promote/demote users between admin and guest roles. Only admin-role users can delete restaurants (enforced server-side). Admin password stored in `admin_settings` table.
+- **Identity**: User profiles stored in `user_profiles` table (first + last name, role, password). Display name (`"First Last"`) stored in localStorage and used as identity for `created_by`/`spun_by`/`rated_by` fields. Users must log in with password. Existing users without passwords are prompted to create one on first login. New profiles require a password during registration.
+- **Admin system**: Admin dashboard gated by a shared admin password (default "iloveboba", changeable). Admins can promote/demote users between admin and guest roles, delete user profiles, and reset user passwords. Only admin-role users can delete restaurants (enforced server-side). Admin password stored in `admin_settings` table.
 - **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.

@@ -746,3 +746,32 @@ body {
   font-size: 0.9rem;
   margin: 0;
 }
+
+.admin-user-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reset-password-inline {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.switcher-password-form {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.switcher-password-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.switcher-password-actions {
+  display: flex;
+  gap: 6px;
+}
