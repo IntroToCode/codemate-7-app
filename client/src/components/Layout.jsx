@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext';
 import RecentHits from './RecentHits';
 
 export default function Layout({ children, spinRefresh }) {
-  const { userName, saveName } = useUser();
+  const { userName, logout } = useUser();
 
   return (
     <div className="app-layout">
@@ -22,9 +22,9 @@ export default function Layout({ children, spinRefresh }) {
           <span className="user-chip">👤 {userName}</span>
           <button
             className="btn btn-ghost btn-sm"
-            onClick={() => { localStorage.removeItem('lr_username'); saveName(''); }}
-            title="Change name"
-          >✏️</button>
+            onClick={() => logout()}
+            title="Log out"
+          >🚪</button>
         </div>
       </header>
 
