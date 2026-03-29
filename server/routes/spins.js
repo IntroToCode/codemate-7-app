@@ -13,17 +13,33 @@ async function getSpinLimit(role) {
   return parseInt(rows[0].value, 10);
 }
 
-async function getSpinCount(userName, resetAt) {
-  const since = resetAt || new Date(Date.now() - 24 * 60 * 60 * 1000);
+function getEffectiveSince(resetAt) {
   const twentyFourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const effectiveSince = resetAt && resetAt > twentyFourAgo ? resetAt : twentyFourAgo;
+  return resetAt && resetAt > twentyFourAgo ? resetAt : twentyFourAgo;
+}
 
+async function getSpinCount(userName, resetAt) {
+  const effectiveSince = getEffectiveSince(resetAt);
   const { rows } = await pool.query(
     `SELECT COUNT(*)::int AS count FROM spins
      WHERE spun_by = $1 AND is_vetoed = FALSE AND created_at > $2`,
     [userName, effectiveSince]
   );
   return rows[0].count;
+}
+
+async function getResetTime(userName, resetAt) {
+  const effectiveSince = getEffectiveSince(resetAt);
+  const { rows } = await pool.query(
+    `SELECT created_at FROM spins
+     WHERE spun_by = $1 AND is_vetoed = FALSE AND created_at > $2
+     ORDER BY created_at ASC LIMIT 1`,
+    [userName, effectiveSince]
+  );
+  if (rows.length > 0) {
+    return new Date(rows[0].created_at.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return new Date(effectiveSince.getTime() + 24 * 60 * 60 * 1000);
 }
 
 async function getUserProfile(userName) {
@@ -53,20 +69,7 @@ router.get('/remaining', async (req, res) => {
 
     let resetTime = null;
     if (remaining === 0) {
-      const twentyFourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const effectiveSince = profile.spin_counter_reset_at && profile.spin_counter_reset_at > twentyFourAgo
-        ? profile.spin_counter_reset_at
-        : twentyFourAgo;
-
-      const { rows } = await pool.query(
-        `SELECT created_at FROM spins
-         WHERE spun_by = $1 AND is_vetoed = FALSE AND created_at > $2
-         ORDER BY created_at ASC LIMIT 1`,
-        [user_name, effectiveSince]
-      );
-      if (rows.length > 0) {
-        resetTime = new Date(rows[0].created_at.getTime() + 24 * 60 * 60 * 1000).toISOString();
-      }
+      resetTime = (await getResetTime(user_name, profile.spin_counter_reset_at)).toISOString();
     }
 
     res.json({ remaining, limit, used, unlimited: false, resetTime });
@@ -111,10 +114,14 @@ router.post('/', async (req, res) => {
     if (limit !== -1) {
       const used = await getSpinCount(spun_by, profile.spin_counter_reset_at);
       if (used >= limit) {
+        const resetTime = await getResetTime(spun_by, profile.spin_counter_reset_at);
+        const retryAfterSeconds = Math.max(0, Math.ceil((resetTime - Date.now()) / 1000));
         return res.status(429).json({
           error: `You've reached your spin limit of ${limit} per 24 hours.`,
           limit,
           used,
+          resetTime,
+          retryAfterSeconds,
         });
       }
     }
