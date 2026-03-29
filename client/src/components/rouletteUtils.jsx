@@ -62,6 +62,16 @@ function getSliceLineMaxWidth(radius, segmentAngle, fontSize) {
   return Math.max(fontSize * 2.8, tangentWidth - sideMargin * 2);
 }
 
+function getLabelAnchorRadius(innerRadius, outerRadius, lineHeight, lineCount) {
+  const radialBand = Math.max(0, outerRadius - innerRadius);
+  const outwardBiasRadius = innerRadius + radialBand * 0.7;
+  const lineOffsetExtent = ((lineCount - 1) / 2) * lineHeight;
+  const rimBuffer = Math.max(8, lineHeight * 1.15);
+  const minAnchorRadius = innerRadius + lineOffsetExtent;
+  const maxAnchorRadius = outerRadius - rimBuffer - lineOffsetExtent;
+  return Math.max(minAnchorRadius, Math.min(maxAnchorRadius, outwardBiasRadius));
+}
+
 function ellipsizeToWidth(text, maxWidth, fontSize) {
   const normalized = normalizeLabel(text);
   if (!normalized) return '';
@@ -119,21 +129,32 @@ function getRestaurantLabelLayout(name, segmentCount, fontSize = getWheelLabelFo
   const lineHeight = fontSize * 1.06;
   const innerRadius = HUB_R + Math.max(9, fontSize * 0.92);
   const outerRadius = WHEEL_R - Math.max(6, fontSize * 0.72);
-  const anchorRadius = (innerRadius + outerRadius) / 2;
   const maxLines = Math.min(3, Math.max(1, Math.floor((outerRadius - innerRadius) / lineHeight)));
   const normalized = normalizeLabel(name);
-  const getMaxWidths = (lineCount) => getLineOffsets(lineCount, lineHeight).map((offset) => { const lineRadius = Math.max(innerRadius, Math.min(outerRadius, anchorRadius + offset)); return getSliceLineMaxWidth(lineRadius, segmentAngle, fontSize); });
-  if (!normalized) return { lines: [''], fontSize, lineHeight, anchorRadius, isWrapped: false, isEllipsized: false };
-  const singleLineWidths = getMaxWidths(1);
-  if (estimateLabelTextWidth(normalized, fontSize) <= singleLineWidths[0]) return { lines: [normalized], fontSize, lineHeight, anchorRadius, isWrapped: false, isEllipsized: false };
+  const getLayoutMetrics = (lineCount) => {
+    const anchorRadius = getLabelAnchorRadius(innerRadius, outerRadius, lineHeight, lineCount);
+    const maxWidths = getLineOffsets(lineCount, lineHeight).map((offset) => {
+      const lineRadius = Math.max(innerRadius, Math.min(outerRadius, anchorRadius + offset));
+      return getSliceLineMaxWidth(lineRadius, segmentAngle, fontSize);
+    });
+    return { anchorRadius, maxWidths };
+  };
+  const singleLineLayout = getLayoutMetrics(1);
+  if (!normalized) return { lines: [''], fontSize, lineHeight, anchorRadius: singleLineLayout.anchorRadius, isWrapped: false, isEllipsized: false };
+  if (estimateLabelTextWidth(normalized, fontSize) <= singleLineLayout.maxWidths[0]) return { lines: [normalized], fontSize, lineHeight, anchorRadius: singleLineLayout.anchorRadius, isWrapped: false, isEllipsized: false };
   const words = normalized.split(' ');
   if (words.length > 1) {
-    for (let lineCount = 2; lineCount <= maxLines; lineCount++) { const fittedLines = findWrappedLines(words, getMaxWidths(lineCount), fontSize); if (fittedLines) return { lines: fittedLines, fontSize, lineHeight, anchorRadius, isWrapped: true, isEllipsized: false }; }
-    const fallbackLines = wrapWordsWithEllipsis(words, getMaxWidths(maxLines), fontSize);
-    if (fallbackLines) return { lines: fallbackLines, fontSize, lineHeight, anchorRadius, isWrapped: fallbackLines.length > 1, isEllipsized: fallbackLines.some((line) => line.endsWith('\u2026')) };
+    for (let lineCount = 2; lineCount <= maxLines; lineCount++) {
+      const lineLayout = getLayoutMetrics(lineCount);
+      const fittedLines = findWrappedLines(words, lineLayout.maxWidths, fontSize);
+      if (fittedLines) return { lines: fittedLines, fontSize, lineHeight, anchorRadius: lineLayout.anchorRadius, isWrapped: true, isEllipsized: false };
+    }
+    const fallbackLayout = getLayoutMetrics(maxLines);
+    const fallbackLines = wrapWordsWithEllipsis(words, fallbackLayout.maxWidths, fontSize);
+    if (fallbackLines) return { lines: fallbackLines, fontSize, lineHeight, anchorRadius: fallbackLayout.anchorRadius, isWrapped: fallbackLines.length > 1, isEllipsized: fallbackLines.some((line) => line.endsWith('\u2026')) };
   }
-  const clippedLine = ellipsizeToWidth(normalized, singleLineWidths[0], fontSize);
-  return { lines: [clippedLine], fontSize, lineHeight, anchorRadius, isWrapped: false, isEllipsized: clippedLine.endsWith('\u2026') };
+  const clippedLine = ellipsizeToWidth(normalized, singleLineLayout.maxWidths[0], fontSize);
+  return { lines: [clippedLine], fontSize, lineHeight, anchorRadius: singleLineLayout.anchorRadius, isWrapped: false, isEllipsized: clippedLine.endsWith('\u2026') };
 }
 
 function shuffleArray(arr) {
