@@ -11,6 +11,16 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function formatTimeRemaining(resetTime) {
+  if (!resetTime) return '';
+  const diff = new Date(resetTime).getTime() - Date.now();
+  if (diff <= 0) return '';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
 export default function SpinPage({ onSpin }) {
   const { userName } = useUser();
   const { tempDisabled, clearAll } = useTempDisable();
@@ -27,6 +37,23 @@ export default function SpinPage({ onSpin }) {
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
 
+  const [spinInfo, setSpinInfo] = useState(null);
+
+  const fetchSpinInfo = useCallback(() => {
+    if (!userName) return;
+    fetch(`/api/spins/remaining?user_name=${encodeURIComponent(userName)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to fetch spin info');
+        return r.json();
+      })
+      .then((data) => {
+        if (data && typeof data.remaining === 'number') {
+          setSpinInfo(data);
+        }
+      })
+      .catch(() => {});
+  }, [userName]);
+
   useEffect(() => {
     fetch('/api/restaurants')
       .then((r) => r.json())
@@ -40,9 +67,15 @@ export default function SpinPage({ onSpin }) {
       .finally(() => setLoadingRest(false));
   }, []);
 
+  useEffect(() => {
+    fetchSpinInfo();
+  }, [fetchSpinInfo]);
+
   const activeOnWheel = useCallback(() => {
     return allRestaurants.filter((r) => !tempDisabled.has(r.id));
   }, [allRestaurants, tempDisabled]);
+
+  const atLimit = spinInfo && !spinInfo.unlimited && spinInfo.remaining <= 0;
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
     if (spinInProgress.current) return;
@@ -101,6 +134,7 @@ export default function SpinPage({ onSpin }) {
         setSpinning(false);
         setVetoing(false);
         spinInProgress.current = false;
+        fetchSpinInfo();
         return;
       }
 
@@ -129,6 +163,7 @@ export default function SpinPage({ onSpin }) {
     setResult(pendingResultRef.current);
     clearAll();
     spinInProgress.current = false;
+    fetchSpinInfo();
     if (onSpin) onSpin();
   }
 
@@ -157,6 +192,23 @@ export default function SpinPage({ onSpin }) {
         )}
 
         <div className="spin-controls">
+          {spinInfo && !spinInfo.unlimited && (
+            <div className="spin-limit-info">
+              {atLimit ? (
+                <span className="spin-limit-reached">
+                  🚫 Spin limit reached ({spinInfo.limit}/{spinInfo.limit})
+                  {spinInfo.resetTime && (
+                    <span className="reset-timer"> — resets in {formatTimeRemaining(spinInfo.resetTime)}</span>
+                  )}
+                </span>
+              ) : (
+                <span className="spin-limit-remaining">
+                  🎰 {spinInfo.remaining} of {spinInfo.limit} spins remaining
+                </span>
+              )}
+            </div>
+          )}
+
           {tooFew ? (
             <p className="roulette-min-notice">
               🍽️ Add at least 2 restaurants to spin the wheel!
@@ -165,12 +217,14 @@ export default function SpinPage({ onSpin }) {
             <button
               className="btn btn-spin"
               onClick={() => doSpin(false)}
-              disabled={spinning || vetoing || tooFew}
+              disabled={spinning || vetoing || tooFew || atLimit}
             >
               {spinning && !vetoing
                 ? '🎡 Spinning…'
                 : vetoing
                 ? '🔄 Re-spinning…'
+                : atLimit
+                ? '🚫 Limit Reached'
                 : '🎡 Spin the Wheel!'}
             </button>
           )}

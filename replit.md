@@ -75,8 +75,8 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
-- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default guest), password (nullable), created_at (unique per first+last name pair)
-- **admin_settings**: key (VARCHAR PK), value — stores admin_password (default "iloveboba")
+- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default guest), password (nullable), spin_counter_reset_at (nullable timestamp), created_at (unique per first+last name pair)
+- **admin_settings**: key (VARCHAR PK), value — stores admin_password (default "iloveboba"), guest_spin_limit (default "2"), admin_spin_limit (default "-1" for unlimited)
 
 ## API Routes
 | Method | Path | Description |
@@ -107,6 +107,12 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 | PATCH | /api/users/:id/role | Update user role (admin/guest) |
 | DELETE | /api/users/:id | Delete user profile (admin only) |
 | POST | /api/users/:id/admin-reset-password | Admin reset user password |
+| GET | /api/users/spin-limits | Get spin limits per role |
+| PUT | /api/users/spin-limits | Update spin limits per role (admin only) |
+| GET | /api/users/spin-usage | Get all users' spin usage in last 24h |
+| POST | /api/users/:id/reset-spins | Reset spin counter for specific user (admin only) |
+| POST | /api/users/reset-all-spins | Reset spin counters for all users (admin only) |
+| GET | /api/spins/remaining?user_name= | Get remaining spins for a user |
 
 ## Running Tests
 ```bash
@@ -122,6 +128,7 @@ cd client && npm test    # 69 client-side tests
 ## Key Design Decisions
 - **Identity**: User profiles stored in `user_profiles` table (first + last name, role, password). Display name (`"First Last"`) stored in localStorage and used as identity for `created_by`/`spun_by`/`rated_by` fields. Users must log in with password. Existing users without passwords are prompted to create one on first login. New profiles require a password during registration.
 - **Admin system**: Admin dashboard gated by a shared admin password (default "iloveboba", changeable). Admins can promote/demote users between admin and guest roles, delete user profiles, and reset user passwords. Only admin-role users can delete restaurants (enforced server-side). Admin password stored in `admin_settings` table.
+- **Spin limits**: Configurable per role — guests default to 2 spins/24h, admins default to unlimited (-1). Vetoed spins don't count. Admins can change limits, reset individual or all user counters from the admin dashboard. Server-side enforced with 429 response when limit reached.
 - **Spin algorithm**: Excludes restaurants from last 5 non-vetoed spins (toggle-able). Falls back to full active list if all eligible are excluded.
 - **Temporary disable**: Client-side only (stored in React state). Resets on refresh by design.
 - **Mock autofill**: Local fixture of 15 restaurants; fuzzy/partial name match.

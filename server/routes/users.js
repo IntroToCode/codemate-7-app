@@ -167,6 +167,130 @@ router.get('/count', async (_req, res) => {
   }
 });
 
+router.get('/spin-limits', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "SELECT key, value FROM admin_settings WHERE key IN ('guest_spin_limit', 'admin_spin_limit')"
+    );
+    const limits = {};
+    for (const row of rows) {
+      limits[row.key] = parseInt(row.value, 10);
+    }
+    res.json({
+      guest_spin_limit: limits.guest_spin_limit ?? 2,
+      admin_spin_limit: limits.admin_spin_limit ?? -1,
+    });
+  } catch (err) {
+    console.error('Get spin limits error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.put('/spin-limits', async (req, res) => {
+  const { adminPassword, guest_spin_limit, admin_spin_limit } = req.body;
+  if (!adminPassword) {
+    return res.status(400).json({ error: 'Admin password is required.' });
+  }
+  try {
+    const pwCheck = await pool.query(
+      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
+    );
+    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    if (guest_spin_limit !== undefined) {
+      const val = parseInt(guest_spin_limit, 10);
+      if (isNaN(val) || (val < 1 && val !== -1)) {
+        return res.status(400).json({ error: 'Guest spin limit must be a positive number or -1 for unlimited.' });
+      }
+      await pool.query(
+        "INSERT INTO admin_settings (key, value) VALUES ('guest_spin_limit', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+        [String(val)]
+      );
+    }
+    if (admin_spin_limit !== undefined) {
+      const val = parseInt(admin_spin_limit, 10);
+      if (isNaN(val) || (val < 1 && val !== -1)) {
+        return res.status(400).json({ error: 'Admin spin limit must be a positive number or -1 for unlimited.' });
+      }
+      await pool.query(
+        "INSERT INTO admin_settings (key, value) VALUES ('admin_spin_limit', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+        [String(val)]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update spin limits error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/reset-all-spins', async (req, res) => {
+  const { adminPassword } = req.body;
+  if (!adminPassword) {
+    return res.status(400).json({ error: 'Admin password is required.' });
+  }
+  try {
+    const pwCheck = await pool.query(
+      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
+    );
+    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    await pool.query('UPDATE user_profiles SET spin_counter_reset_at = NOW()');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Reset all spins error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/spin-usage', async (req, res) => {
+  try {
+    const twentyFourAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, u.role, u.spin_counter_reset_at,
+              (SELECT COUNT(*)::int FROM spins s
+               WHERE s.spun_by = CONCAT(u.first_name, ' ', u.last_name)
+                 AND s.is_vetoed = FALSE
+                 AND s.created_at > GREATEST($1::timestamptz, COALESCE(u.spin_counter_reset_at, $1::timestamptz))
+              ) AS spins_used
+       FROM user_profiles u
+       ORDER BY u.first_name, u.last_name`,
+      [twentyFourAgo]
+    );
+
+    const limitsResult = await pool.query(
+      "SELECT key, value FROM admin_settings WHERE key IN ('guest_spin_limit', 'admin_spin_limit')"
+    );
+    const limits = {};
+    for (const row of limitsResult.rows) {
+      limits[row.key] = parseInt(row.value, 10);
+    }
+
+    const usersWithUsage = rows.map(u => {
+      const limit = u.role === 'admin'
+        ? (limits.admin_spin_limit ?? -1)
+        : (limits.guest_spin_limit ?? 2);
+      return {
+        id: u.id,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        role: u.role,
+        spins_used: u.spins_used,
+        spin_limit: limit,
+        unlimited: limit === -1,
+        was_reset: !!u.spin_counter_reset_at && u.spin_counter_reset_at > twentyFourAgo,
+      };
+    });
+
+    res.json(usersWithUsage);
+  } catch (err) {
+    console.error('Spin usage error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/:id/role', async (req, res) => {
   const { id } = req.params;
   try {
@@ -307,6 +431,31 @@ router.post('/:id/admin-reset-password', async (req, res) => {
     res.json({ success: true, user: rows[0] });
   } catch (err) {
     console.error('Admin reset password error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/reset-spins', async (req, res) => {
+  const { id } = req.params;
+  const { adminPassword } = req.body;
+  if (!adminPassword) {
+    return res.status(400).json({ error: 'Admin password is required.' });
+  }
+  try {
+    const pwCheck = await pool.query(
+      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
+    );
+    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const { rows } = await pool.query(
+      'UPDATE user_profiles SET spin_counter_reset_at = NOW() WHERE id = $1 RETURNING id, first_name, last_name',
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found.' });
+    res.json({ success: true, user: rows[0] });
+  } catch (err) {
+    console.error('Reset spins error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
