@@ -56,7 +56,7 @@ describe('RouletteWheel rendering', () => {
     );
     const texts = container.querySelectorAll('.rw-seg text');
     const names = Array.from(texts).map((t) => t.textContent);
-    expect(names).toContain('Pizza Pala\u2026');
+    expect(names).toContain('Pizza Palace');
     expect(names).toContain('Taco Town');
     expect(names).toContain('Burger Barn');
     expect(names).toContain('Sushi Spot');
@@ -175,24 +175,17 @@ describe('RouletteWheel rendering', () => {
     expect(lines).toHaveLength(4);
   });
 
-  test('truncates long restaurant names', () => {
-    const longNameRestaurants = [
-      { id: 1, name: 'Extremely Long Restaurant Name That Is Way Too Long' },
-      { id: 2, name: 'Another Very Long Name Here' },
-      { id: 3, name: 'Short' },
-      { id: 4, name: 'Also Short' },
-    ];
-    const { container } = render(
-      <RouletteWheel
-        restaurants={longNameRestaurants}
-        spinning={false}
-        winnerIndex={null}
-        onSpinComplete={() => {}}
-      />
-    );
+  test('wraps only the labels that need it and keeps font size uniform', () => {
+    const longNameRestaurants = [{ id: 1, name: 'Extremely Long Restaurant Name That Is Way Too Long' }, { id: 2, name: 'Another Long Multi Word Restaurant Name' }, { id: 3, name: 'Short' }, { id: 4, name: 'Also Short' }, { id: 5, name: 'Tiny' }, { id: 6, name: 'Medium Name' }, { id: 7, name: 'Quick Bite' }, { id: 8, name: 'Late Lunch' }];
+    const { container } = render(<RouletteWheel restaurants={longNameRestaurants} spinning={false} winnerIndex={null} onSpinComplete={() => {}} />);
     const texts = container.querySelectorAll('.rw-seg text');
-    const firstName = texts[0].textContent;
-    expect(firstName.length).toBeLessThanOrEqual(11);
-    expect(firstName).toMatch(/…$/);
+    const wrappedLabelLines = texts[0].querySelectorAll('tspan');
+    const shortLabelLines = texts[2].querySelectorAll('tspan');
+    const fontSizes = new Set(Array.from(texts).map((text) => text.getAttribute('font-size')));
+    expect(wrappedLabelLines.length).toBeGreaterThan(1);
+    expect(shortLabelLines).toHaveLength(1);
+    expect(fontSizes.size).toBe(1);
+    expect(texts[0]).toHaveAttribute('text-anchor', 'middle');
+    expect(texts[0]).toHaveAttribute('clip-path', 'url(#rw-slice-clip-8-0)');
   });
 });

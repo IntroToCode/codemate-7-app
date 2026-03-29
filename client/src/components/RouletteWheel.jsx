@@ -6,7 +6,8 @@ import {
   SVG_SIZE,
   CASINO_COLORS,
   buildSegPath,
-  clamp,
+  getRestaurantLabelLayout,
+  getWheelLabelFontSize,
 } from './rouletteUtils.jsx';
 
 let _audioCtx = null;
@@ -180,9 +181,8 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     }
   }
 
-  const fontSize = n <= 3 ? 13 : n <= 5 ? 11 : n <= 7 ? 10 : 9;
-  const maxLen = n <= 3 ? 13 : n <= 5 ? 11 : n <= 7 ? 9 : 8;
-  const textR = WHEEL_R * 0.58;
+  const fontSize = getWheelLabelFontSize(n);
+  const labelLayouts = restaurants.map((restaurant) => getRestaurantLabelLayout(restaurant.name, n, fontSize));
 
   const rimDiamonds = Array.from({ length: 18 });
 
@@ -216,6 +216,11 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
             <stop offset="70%" stopColor="#8B6914" />
             <stop offset="100%" stopColor="#C9A84C" />
           </radialGradient>
+          {restaurants.map((restaurant, i) => (
+            <clipPath key={`rw-slice-clip-${restaurant.id || i}`} id={`rw-slice-clip-${n}-${i}`}>
+              <path d={buildSegPath(i, n)} />
+            </clipPath>
+          ))}
         </defs>
 
         {/* Outer glow ring */}
@@ -253,12 +258,16 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <g ref={wheelGroupRef}>
           {/* Wheel segments */}
           {restaurants.map((r, i) => {
+            const labelLayout = labelLayouts[i];
+            const textR = labelLayout.anchorRadius;
             const midA = -Math.PI / 2 + (i + 0.5) * sa;
             const tx = (textR * Math.cos(midA)).toFixed(2);
             const ty = (textR * Math.sin(midA)).toFixed(2);
             const deg = ((midA * 180) / Math.PI + 90).toFixed(1);
             const color = CASINO_COLORS[i % CASINO_COLORS.length];
             const isWinner = done && winnerIndex === i;
+            const lineHeightEm = labelLayout.lineHeight / labelLayout.fontSize;
+            const firstLineDy = -((labelLayout.lines.length - 1) / 2) * lineHeightEm;
 
             return (
               <g
@@ -284,9 +293,14 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
                   letterSpacing="0.01em"
                   transform={`rotate(${deg},${tx},${ty})`}
                   filter="url(#rw-text)"
+                  clipPath={`url(#rw-slice-clip-${n}-${i})`}
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
-                  {clamp(r.name, maxLen)}
+                  {labelLayout.lines.map((line, lineIndex) => (
+                    <tspan key={`label-line-${i}-${lineIndex}`} x={tx} dy={`${lineIndex === 0 ? firstLineDy : lineHeightEm}em`}>
+                      {line}
+                    </tspan>
+                  ))}
                 </text>
               </g>
             );
