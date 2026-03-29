@@ -6,7 +6,7 @@ import RestaurantSearch from '../components/RestaurantSearch';
 import { priceLabel } from '../components/rouletteUtils.jsx';
 
 export default function RestaurantList() {
-  const { userName } = useUser();
+  const { userName, userId, userRole } = useUser();
   const { tempDisabled, toggle: toggleTempDisable } = useTempDisable();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,13 +94,26 @@ export default function RestaurantList() {
 
   async function handleDelete(id) {
     if (!window.confirm('Delete this restaurant?')) return;
-    const res = await fetch(`/api/restaurants/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      alert(err.error || 'Failed to delete restaurant');
-      return;
+    try {
+      const roleRes = await fetch(`/api/users/${userId}/role`);
+      const roleData = await roleRes.json();
+      if (!roleRes.ok || roleData.role !== 'admin') {
+        alert('Only admins can delete restaurants.');
+        return;
+      }
+      const res = await fetch(`/api/restaurants/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Id': userId },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to delete restaurant');
+        return;
+      }
+      load();
+    } catch (err) {
+      alert('Failed to delete restaurant. Please try again.');
     }
-    load();
   }
 
   async function handleToggle(id) {
@@ -304,7 +317,9 @@ export default function RestaurantList() {
                   >
                     {tempDisabled.has(r.id) ? '↩️ Re-enable' : '⏸️ Skip next spin'}
                   </button>
-                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>🗑️</button>
+                  {userRole === 'admin' && (
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>🗑️</button>
+                  )}
                 </div>
               </>
             )}
