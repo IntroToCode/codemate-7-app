@@ -62,6 +62,27 @@ async function migrate() {
         END IF;
       END $$;
     `);
+    await pool.query(`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('guest_spin_limit', '2')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    await pool.query(`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('admin_spin_limit', '-1')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='user_profiles' AND column_name='spin_counter_reset_at'
+        ) THEN
+          ALTER TABLE user_profiles ADD COLUMN spin_counter_reset_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+      END $$;
+    `);
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);
