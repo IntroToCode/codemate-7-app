@@ -161,10 +161,10 @@ router.post('/:id/veto', async (req, res) => {
 
   try {
     const vetoResult = await pool.query(
-      `UPDATE spins SET is_vetoed = TRUE WHERE id = $1 RETURNING *`,
+      `UPDATE spins SET is_vetoed = TRUE WHERE id = $1 AND is_vetoed = FALSE RETURNING *`,
       [id]
     );
-    if (vetoResult.rows.length === 0) return res.status(404).json({ error: 'Spin not found' });
+    if (vetoResult.rows.length === 0) return res.status(404).json({ error: 'Spin not found or already vetoed' });
 
     const vetoedRestaurantId = vetoResult.rows[0].restaurant_id;
 
