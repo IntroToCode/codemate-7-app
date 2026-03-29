@@ -5,9 +5,13 @@ import SpinPage from '../pages/SpinPage';
 import { UserProvider } from '../context/UserContext';
 import { TempDisableProvider } from '../context/TempDisableContext';
 
-jest.mock('../components/RouletteWheel', () => function MockRouletteWheel({ restaurants }) {
+jest.mock('../components/RouletteWheel', () => function MockRouletteWheel({ restaurants, disabled }) {
   return (
-    <div data-testid="wheel">
+    <div
+      data-testid="wheel"
+      data-disabled={disabled ? 'true' : 'false'}
+      aria-disabled={disabled ? 'true' : 'false'}
+    >
       {restaurants.map((restaurant) => (
         <span key={restaurant.id}>{restaurant.name}</span>
       ))}
@@ -108,24 +112,29 @@ describe('SpinPage recent exclusion UI', () => {
     await waitFor(() => {
       expect(screen.getByText(/add at least 2 restaurants to spin the wheel/i)).toBeInTheDocument();
     });
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-disabled', 'true');
+    expect(screen.getByText('Charlie Deli')).toBeInTheDocument();
   });
 
-  test('restores excluded restaurants when the 7-day toggle is turned off', async () => {
+  test('removes the disabled wheel state when the 7-day toggle is turned off and enough restaurants return', async () => {
     restaurants = [
       { id: 'a', name: 'Alpha Cafe', active: true },
       { id: 'b', name: 'Bravo Bistro', active: true },
       { id: 'c', name: 'Charlie Deli', active: true },
     ];
-    recentIds = ['a'];
+    recentIds = ['a', 'b'];
 
     renderSpinPage();
 
     await waitFor(() => expect(screen.getByTestId('wheel')).toBeInTheDocument());
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-disabled', 'true');
     expect(screen.queryByText('Alpha Cafe')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bravo Bistro')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('checkbox'));
 
     await waitFor(() => expect(screen.getByText('Alpha Cafe')).toBeInTheDocument());
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-disabled', 'false');
     expect(screen.getByText('Bravo Bistro')).toBeInTheDocument();
     expect(screen.getByText('Charlie Deli')).toBeInTheDocument();
   });

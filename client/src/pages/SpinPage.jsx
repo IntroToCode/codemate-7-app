@@ -128,8 +128,13 @@ export default function SpinPage({ onSpin }) {
   useEffect(() => {
     if (!wheelReady || spinInProgress.current) return;
 
-    if (eligibleRestaurants.length < 2) {
+    if (eligibleRestaurants.length === 0) {
       setWheelRestaurants([]);
+      return;
+    }
+
+    if (eligibleRestaurants.length === 1) {
+      setWheelRestaurants(eligibleRestaurants);
       return;
     }
 
@@ -143,6 +148,7 @@ export default function SpinPage({ onSpin }) {
     && eligibleRestaurants.length === 0
     && recentExcludedIds.length > 0;
   const tooFew = wheelReady && eligibleRestaurants.length < 2 && !allExcludedByRecent;
+  const wheelDisabled = tooFew && wheelRestaurants.length > 0;
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
     if (spinInProgress.current) return;
@@ -273,13 +279,14 @@ export default function SpinPage({ onSpin }) {
   return (
     <div className="spin-page">
       <div className="spin-hero">
-        {!wheelReady || wheelRestaurants.length < 2 ? (
+        {!wheelReady || wheelRestaurants.length === 0 ? (
           <div className="roulette-loading">
             {!wheelReady ? 'Loading wheel…' : ''}
           </div>
         ) : (
           <RouletteWheel
             restaurants={wheelRestaurants}
+            disabled={wheelDisabled}
             spinning={spinning}
             winnerIndex={winnerIndex}
             onSpinComplete={handleSpinComplete}
