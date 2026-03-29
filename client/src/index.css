@@ -69,6 +69,24 @@ body {
   font-weight: 500;
 }
 
+.user-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.user-chip-btn:hover .user-chip {
+  background: rgba(255,255,255,0.35);
+}
+.user-chip-arrow {
+  font-size: 0.7rem;
+}
+
 .app-body {
   display: flex;
   flex: 1;

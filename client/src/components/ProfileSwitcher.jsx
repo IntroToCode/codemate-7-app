@@ -85,10 +85,13 @@ export default function ProfileSwitcher() {
   return (
     <div className="profile-switcher" ref={ref}>
       <button
-        className="btn btn-ghost btn-sm"
+        className="user-chip-btn"
         onClick={() => setOpen((v) => !v)}
-        title="Switch profile"
-      >🔄</button>
+        title="Switch profile or log out"
+      >
+        <span className="user-chip">👤 {userName}</span>
+        <span className="user-chip-arrow">{open ? '▲' : '▼'}</span>
+      </button>
 
       {open && (
         <div className="switcher-dropdown">
