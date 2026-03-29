@@ -35,7 +35,7 @@ function normalizeLabel(name = '') {
 }
 
 function getWheelLabelFontSize(segmentCount) {
-  return segmentCount <= 3 ? 13 : segmentCount <= 5 ? 11 : segmentCount <= 7 ? 10 : 9;
+  return segmentCount <= 3 ? 15 : segmentCount <= 5 ? 13 : segmentCount <= 7 ? 12 : 11;
 }
 
 function estimateLabelTextWidth(text, fontSize) {
@@ -58,17 +58,19 @@ function getLineOffsets(lineCount, lineHeight) {
 
 function getSliceLineMaxWidth(radius, segmentAngle, fontSize) {
   const tangentWidth = 2 * radius * Math.tan(segmentAngle / 2);
-  const sideMargin = Math.max(10, fontSize * 0.95);
-  return Math.max(fontSize * 2.4, tangentWidth - sideMargin * 2);
+  const sideMargin = Math.max(4, fontSize * 0.34);
+  return Math.max(fontSize * 2.8, tangentWidth - sideMargin * 2);
 }
 
 function ellipsizeToWidth(text, maxWidth, fontSize) {
   const normalized = normalizeLabel(text);
   if (!normalized) return '';
-  if (estimateLabelTextWidth(normalized, fontSize) <= maxWidth) return normalized;
+  const fitBuffer = Math.max(1.25, fontSize * 0.12);
+  const usableWidth = Math.max(0, maxWidth - fitBuffer);
+  if (estimateLabelTextWidth(normalized, fontSize) <= usableWidth) return normalized;
   const ellipsis = '\u2026';
   const chars = Array.from(normalized);
-  while (chars.length > 0 && estimateLabelTextWidth(chars.join('') + ellipsis, fontSize) > maxWidth) chars.pop();
+  while (chars.length > 0 && estimateLabelTextWidth(chars.join('') + ellipsis, fontSize) > usableWidth) chars.pop();
   return chars.length ? chars.join('').trimEnd() + ellipsis : ellipsis;
 }
 
@@ -115,8 +117,8 @@ function getRestaurantLabelLayout(name, segmentCount, fontSize = getWheelLabelFo
   const safeSegmentCount = Math.max(2, segmentCount);
   const segmentAngle = (2 * Math.PI) / safeSegmentCount;
   const lineHeight = fontSize * 1.06;
-  const innerRadius = HUB_R + Math.max(16, fontSize * 1.65);
-  const outerRadius = WHEEL_R - Math.max(14, fontSize * 1.45);
+  const innerRadius = HUB_R + Math.max(9, fontSize * 0.92);
+  const outerRadius = WHEEL_R - Math.max(6, fontSize * 0.72);
   const anchorRadius = (innerRadius + outerRadius) / 2;
   const maxLines = Math.min(3, Math.max(1, Math.floor((outerRadius - innerRadius) / lineHeight)));
   const normalized = normalizeLabel(name);

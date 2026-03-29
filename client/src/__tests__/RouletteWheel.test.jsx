@@ -185,6 +185,7 @@ describe('RouletteWheel rendering', () => {
     expect(wrappedLabelLines.length).toBeGreaterThan(1);
     expect(shortLabelLines).toHaveLength(1);
     expect(fontSizes.size).toBe(1);
+    expect(fontSizes.has('11')).toBe(true);
     expect(texts[0]).toHaveAttribute('text-anchor', 'middle');
     expect(texts[0]).toHaveAttribute('clip-path', 'url(#rw-slice-clip-8-0)');
   });
