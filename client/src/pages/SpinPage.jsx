@@ -88,6 +88,23 @@ export default function SpinPage({ onSpin }) {
     setSpinning(false);
     if (isVeto) setVetoing(true);
 
+    if (!isVeto && userName) {
+      try {
+        const checkRes = await fetch(`/api/spins/remaining?user_name=${encodeURIComponent(userName)}`);
+        if (checkRes.ok) {
+          const freshInfo = await checkRes.json();
+          if (freshInfo && typeof freshInfo.remaining === 'number') {
+            setSpinInfo(freshInfo);
+            if (!freshInfo.unlimited && freshInfo.remaining <= 0) {
+              setError('You have reached your spin limit. Please wait for it to reset.');
+              spinInProgress.current = false;
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     const available = activeOnWheel();
     if (available.length < 2) {
       setError('You need at least 2 active restaurants to spin!');
