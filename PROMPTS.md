@@ -306,6 +306,9 @@ add roulette sound effect.
 
 ---
 
+### 3/29/2026 — 11:19 PM
+
+**Prompt:** "tune it but use playwright to test this tuning"
 ### 3/29/2026
 
 **Prompt:** "switch to this branch: enhancement/issue-6-last-7-days-exclusion-v2"
@@ -314,6 +317,13 @@ add roulette sound effect.
 
 ---
 
+### 3/29/2026 — 11:37 PM
+
+**Prompt:** "yes updated the prompts.md"
+
+**Author:** Alan
+
+---
 ### 3/29/2026
 
 **Prompt:** "plan mode:"
@@ -469,5 +479,13 @@ add roulette sound effect.
 ### 3/29/2026
 
 **Prompt:** "can you update the prompts.md file with the prompts from tis session"
+
+**Author:** Alan
+
+---
+
+### 3/30/2026 — 10:27 PM
+
+**Prompt:** "Implement code, update prompt.md, then run test with playwright and run test suite"
 
 **Author:** Alan

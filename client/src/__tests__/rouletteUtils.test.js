@@ -7,6 +7,9 @@ import {
   CASINO_COLORS,
   buildSegPath,
   clamp,
+  estimateLabelTextWidth,
+  getRestaurantLabelLayout,
+  getWheelLabelFontSize,
   shuffleArray,
   priceLabel,
   computeStopAngles,
@@ -89,6 +92,17 @@ describe('clamp', () => {
   test('handles max of 1', () => {
     expect(clamp('abc', 1)).toBe('…');
   });
+});
+
+describe('label layout helpers', () => {
+  test('estimateLabelTextWidth treats wide text as wider than narrow text', () => { expect(estimateLabelTextWidth('MMMM', 10)).toBeGreaterThan(estimateLabelTextWidth('iiii', 10)); });
+  test('getWheelLabelFontSize returns a larger shared size based on segment count', () => { expect(getWheelLabelFontSize(2)).toBe(15); expect(getWheelLabelFontSize(4)).toBe(13); expect(getWheelLabelFontSize(8)).toBe(11); });
+  test('biases the label anchor outward into the wider part of the slice', () => { const fontSize = getWheelLabelFontSize(8); const layout = getRestaurantLabelLayout('Modern Eats', 8, fontSize); const innerRadius = HUB_R + Math.max(9, fontSize * 0.92); const outerRadius = WHEEL_R - Math.max(6, fontSize * 0.72); expect(layout.anchorRadius).toBeGreaterThan((innerRadius + outerRadius) / 2); expect(layout.anchorRadius).toBeLessThan(outerRadius); });
+  test('keeps a label on one line when it already fits', () => { const layout = getRestaurantLabelLayout('Taco Town', 4, getWheelLabelFontSize(4)); expect(layout.lines).toEqual(['Taco Town']); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(false); });
+  test('keeps short multi-word labels on one line when the expanded safe zone allows it', () => { const layout = getRestaurantLabelLayout('Quick Bite', 8, getWheelLabelFontSize(8)); expect(layout.lines).toEqual(['Quick Bite']); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(false); });
+  test('wraps a multi-word label only when a single line does not fit', () => { const layout = getRestaurantLabelLayout('Extremely Long Restaurant Name That Is Way Too Long', 8, getWheelLabelFontSize(8)); expect(layout.lines.length).toBeGreaterThan(1); expect(layout.isWrapped).toBe(true); expect(layout.lines.join(' ')).toContain('Restaurant'); });
+  test('ellipsizes a long unbroken name instead of forcing a bad wrap', () => { const layout = getRestaurantLabelLayout('Supercalifragilisticexpialidocious', 8, getWheelLabelFontSize(8)); expect(layout.lines).toHaveLength(1); expect(layout.lines[0]).toMatch(/…$/); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(true); });
+  test('normalizes repeated whitespace before laying out labels', () => { const layout = getRestaurantLabelLayout('  Taco   Bell   Cantina  ', 6, getWheelLabelFontSize(6)); expect(layout.lines.join(' ')).toBe('Taco Bell Cantina'); });
 });
 
 describe('shuffleArray', () => {
