@@ -1,11 +1,8 @@
 import { NavLink } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
 import RecentHits from './RecentHits';
 import ProfileSwitcher from './ProfileSwitcher';
 
 export default function Layout({ children, spinRefresh }) {
-  const { userName, logout } = useUser();
-
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -20,13 +17,7 @@ export default function Layout({ children, spinRefresh }) {
           <NavLink to="/log" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>📜 Log</NavLink>
         </nav>
         <div className="header-user">
-          <span className="user-chip">👤 {userName}</span>
           <ProfileSwitcher />
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => logout()}
-            title="Log out"
-          >🚪</button>
         </div>
       </header>
 

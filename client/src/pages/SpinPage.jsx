@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import RouletteWheel from '../components/RouletteWheel';
@@ -6,9 +6,25 @@ import RouletteWheel from '../components/RouletteWheel';
 import { shuffleArray, priceLabel, filterRestaurants } from '../components/rouletteUtils.jsx';
 
 const FOOD_EMOJIS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
+const RECENT_EXCLUSION_DAYS = 7;
+const ALL_EXCLUDED_MESSAGE = `All active restaurants were picked in the last ${RECENT_EXCLUSION_DAYS} days. Turn off the 7-day filter or wait for the window to pass.`;
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function formatTimeRemaining(resetTime) {
+  if (!resetTime) return '';
+  const diff = new Date(resetTime).getTime() - Date.now();
+  if (diff <= 0) return '';
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function buildWheelPool(restaurants) {
+  return shuffleArray(restaurants).slice(0, 8);
 }
 
 export default function SpinPage({ onSpin }) {
@@ -24,21 +40,57 @@ export default function SpinPage({ onSpin }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [excludeRecent, setExcludeRecent] = useState(true);
+  const [recentExcludedIds, setRecentExcludedIds] = useState([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
   const [cuisineFilter, setCuisineFilter] = useState('');
   const [priceFilter, setPriceFilter] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/restaurants')
+  const [spinInfo, setSpinInfo] = useState(null);
+
+  const fetchSpinInfo = useCallback(() => {
+    if (!userName) return;
+    return fetch(`/api/spins/remaining?user_name=${encodeURIComponent(userName)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to fetch spin info');
+        return r.json();
+      })
+      .then((data) => {
+        if (data && typeof data.remaining === 'number') {
+          setSpinInfo(data);
+        }
+      })
+      .catch(() => {});
+  }, [userName]);
+
+  const fetchRecentIds = useCallback(() => {
+    setLoadingRecent(true);
+    return fetch(`/api/spins/recent-ids?days=${RECENT_EXCLUSION_DAYS}`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to fetch recent spin ids');
+        return r.json();
+      })
+      .then((data) => {
+        setRecentExcludedIds(Array.isArray(data?.restaurant_ids) ? data.restaurant_ids : []);
+      })
+      .catch(() => {
+        setRecentExcludedIds([]);
+      })
+      .finally(() => setLoadingRecent(false));
+  }, []);
+
+  const fetchRestaurants = useCallback(() => {
+    setLoadingRest(true);
+    return fetch('/api/restaurants')
       .then((r) => r.json())
       .then((data) => {
         const active = Array.isArray(data) ? data.filter((r) => r.active) : [];
         setAllRestaurants(active);
-        const initial = shuffleArray(active).slice(0, 8);
-        setWheelRestaurants(initial);
       })
-      .catch(() => {})
+      .catch(() => {
+        setAllRestaurants([]);
+      })
       .finally(() => setLoadingRest(false));
   }, []);
 
@@ -67,15 +119,42 @@ export default function SpinPage({ onSpin }) {
     setSpinning(false);
     if (isVeto) setVetoing(true);
 
-    const available = activeOnWheel();
-    if (available.length < 2) {
-      setError('You need at least 2 active restaurants to spin!');
+    if (!isVeto && userName) {
+      try {
+        const checkRes = await fetch(`/api/spins/remaining?user_name=${encodeURIComponent(userName)}`);
+        if (checkRes.ok) {
+          const freshInfo = await checkRes.json();
+          if (freshInfo && typeof freshInfo.remaining === 'number') {
+            setSpinInfo(freshInfo);
+            if (!freshInfo.unlimited && freshInfo.remaining <= 0) {
+              setError('You have reached your spin limit. Please wait for it to reset.');
+              spinInProgress.current = false;
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!wheelReady) {
       spinInProgress.current = false;
       setVetoing(false);
       return;
     }
 
-    const pool = shuffleArray(available).slice(0, 8);
+    const available = eligibleRestaurants;
+    if (available.length < 2) {
+      setError(
+        allExcludedByRecent
+          ? ALL_EXCLUDED_MESSAGE
+          : 'You need at least 2 active restaurants to spin!'
+      );
+      spinInProgress.current = false;
+      setVetoing(false);
+      return;
+    }
+
+    const pool = buildWheelPool(available);
     setWheelRestaurants(pool);
 
     const entranceDuration = pool.length * 100 + 450;
@@ -109,10 +188,14 @@ export default function SpinPage({ onSpin }) {
       await minSpinPromise;
 
       if (!res.ok) {
+        if (res.status === 422) {
+          await fetchRecentIds();
+        }
         setError(data.error || 'Something went wrong.');
         setSpinning(false);
         setVetoing(false);
         spinInProgress.current = false;
+        fetchSpinInfo();
         return;
       }
 
@@ -141,6 +224,8 @@ export default function SpinPage({ onSpin }) {
     setResult(pendingResultRef.current);
     clearAll();
     spinInProgress.current = false;
+    fetchSpinInfo();
+    fetchRecentIds();
     if (onSpin) onSpin();
   }
 
@@ -157,13 +242,14 @@ export default function SpinPage({ onSpin }) {
   return (
     <div className="spin-page">
       <div className="spin-hero">
-        {loadingRest || wheelRestaurants.length < 2 ? (
+        {!wheelReady || wheelRestaurants.length === 0 ? (
           <div className="roulette-loading">
-            {loadingRest ? 'Loading wheel…' : ''}
+            {!wheelReady ? 'Loading wheel…' : ''}
           </div>
         ) : (
           <RouletteWheel
             restaurants={wheelRestaurants}
+            disabled={wheelDisabled}
             spinning={spinning}
             winnerIndex={winnerIndex}
             onSpinComplete={handleSpinComplete}
@@ -236,6 +322,8 @@ export default function SpinPage({ onSpin }) {
                 ? '🎡 Spinning…'
                 : vetoing
                 ? '🔄 Re-spinning…'
+                : atLimit
+                ? '🚫 Limit Reached'
                 : '🎡 Spin the Wheel!'}
             </button>
           )}
@@ -247,7 +335,7 @@ export default function SpinPage({ onSpin }) {
               onChange={(e) => setExcludeRecent(e.target.checked)}
               disabled={spinning}
             />
-            <span>Skip last 5 visited</span>
+            <span>Skip recently visited (7 days)</span>
           </label>
 
           {tempDisabled.size > 0 && (
@@ -285,7 +373,7 @@ export default function SpinPage({ onSpin }) {
           <button
             className="btn btn-veto"
             onClick={handleVeto}
-            disabled={vetoing || spinning}
+            disabled={vetoing || spinning || tooFew || allExcludedByRecent || !wheelReady}
           >
             {vetoing ? '🔄 Re-spinning…' : '🚫 Veto — Re-spin!'}
           </button>

@@ -32,6 +32,22 @@ describe('RouletteWheel rendering', () => {
     expect(svg).toHaveAttribute('aria-label', 'Casino roulette wheel');
   });
 
+  test('marks the wheel wrapper as disabled when disabled is true', () => {
+    const { container } = render(
+      <RouletteWheel
+        restaurants={[{ id: 1, name: 'Solo Spot' }]}
+        disabled
+        spinning={false}
+        winnerIndex={null}
+        onSpinComplete={() => {}}
+      />
+    );
+    const wrapper = container.querySelector('.roulette-wrap');
+    expect(wrapper).toBeInTheDocument();
+    expect(wrapper).toHaveClass('is-disabled');
+    expect(wrapper).toHaveAttribute('aria-disabled', 'true');
+  });
+
   test('renders correct number of segments', () => {
     const { container } = render(
       <RouletteWheel
@@ -96,7 +112,7 @@ describe('RouletteWheel rendering', () => {
     expect(segments).toHaveLength(8);
   });
 
-  test('renders the ball element', () => {
+  test('does not render a ball element', () => {
     const { container } = render(
       <RouletteWheel
         restaurants={mockRestaurants}
@@ -105,8 +121,8 @@ describe('RouletteWheel rendering', () => {
         onSpinComplete={() => {}}
       />
     );
-    const circles = container.querySelectorAll('circle[filter="url(#rw-ball)"]');
-    expect(circles.length).toBeGreaterThanOrEqual(1);
+    const balls = container.querySelectorAll('circle[filter="url(#rw-ball)"]');
+    expect(balls).toHaveLength(0);
   });
 
   test('renders 18 rim diamond markers', () => {

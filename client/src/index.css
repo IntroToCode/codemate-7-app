@@ -69,6 +69,24 @@ body {
   font-weight: 500;
 }
 
+.user-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.user-chip-btn:hover .user-chip {
+  background: rgba(255,255,255,0.35);
+}
+.user-chip-arrow {
+  font-size: 0.7rem;
+}
+
 .app-body {
   display: flex;
   flex: 1;
@@ -346,6 +364,14 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+}
+
+.roulette-wrap.is-disabled {
+  opacity: 0.72;
+}
+
+.roulette-wrap.is-disabled .roulette-svg {
+  filter: grayscale(1) saturate(0.2) brightness(0.9) drop-shadow(0 12px 40px rgba(0,0,0,0.3));
 }
 
 .roulette-svg {
@@ -810,4 +836,86 @@ body {
 }
 .page-indicator {
   font-size: 0.85rem; color: var(--text-muted);
+}
+
+.admin-login-form {
+  max-width: 400px;
+  margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.admin-login-form h3 {
+  margin: 0;
+  text-align: center;
+}
+.error-text {
+  color: #e74c3c;
+  font-size: 0.9rem;
+  margin: 0;
+}
+.success-text {
+  color: #27ae60;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.admin-user-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reset-password-inline {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.switcher-password-form {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.switcher-password-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.switcher-password-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.spin-limit-info {
+  text-align: center;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.spin-limit-remaining {
+  color: var(--teal-dark);
+}
+.spin-limit-reached {
+  color: #d32f2f;
+}
+.reset-timer {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.spin-limit-row {
+  display: flex;
+  align-items: center;
+}
+.spin-limit-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 500;
 }

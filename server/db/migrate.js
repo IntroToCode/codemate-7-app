@@ -29,6 +29,60 @@ async function migrate() {
         END IF;
       END $$;
     `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='user_profiles' AND column_name='role'
+        ) THEN
+          ALTER TABLE user_profiles ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'guest';
+        END IF;
+      END $$;
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_settings (
+        key VARCHAR(50) PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    await pool.query(`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('admin_password', 'iloveboba')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='user_profiles' AND column_name='password'
+        ) THEN
+          ALTER TABLE user_profiles ADD COLUMN password VARCHAR(255);
+        END IF;
+      END $$;
+    `);
+    await pool.query(`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('guest_spin_limit', '2')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    await pool.query(`
+      INSERT INTO admin_settings (key, value)
+      VALUES ('admin_spin_limit', '-1')
+      ON CONFLICT (key) DO NOTHING;
+    `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='user_profiles' AND column_name='spin_counter_reset_at'
+        ) THEN
+          ALTER TABLE user_profiles ADD COLUMN spin_counter_reset_at TIMESTAMP WITH TIME ZONE;
+        END IF;
+      END $$;
+    `);
     console.log('Database migration complete.');
   } catch (err) {
     console.error('Migration error:', err.message);

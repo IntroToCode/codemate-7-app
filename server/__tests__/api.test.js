@@ -18,6 +18,20 @@ beforeEach(() => {
 const UUID = '11111111-1111-1111-1111-111111111111';
 const UUID2 = '22222222-2222-2222-2222-222222222222';
 
+const makeProfile = (overrides = {}) => ({
+  id: UUID2,
+  role: 'guest',
+  spin_counter_reset_at: null,
+  ...overrides,
+});
+
+function mockSpinPrechecks({ profile = makeProfile(), limit = '2', used = 0 } = {}) {
+  mockPool.query
+    .mockResolvedValueOnce({ rows: [profile] })
+    .mockResolvedValueOnce({ rows: [{ value: limit }] })
+    .mockResolvedValueOnce({ rows: [{ count: used }] });
+}
+
 const makeRestaurant = (overrides = {}) => ({
   id: UUID,
   name: 'Test Burgers',
@@ -116,6 +130,7 @@ describe('DELETE /api/restaurants/:id', () => {
 describe('POST /api/spins', () => {
   test('creates a spin and returns 201', async () => {
     const restaurant = makeRestaurant();
+    mockSpinPrechecks();
     mockPool.query
       .mockResolvedValueOnce({ rows: [restaurant] })
       .mockResolvedValueOnce({ rows: [] })
@@ -130,6 +145,7 @@ describe('POST /api/spins', () => {
   test('excludes skip_ids from the spin when provided', async () => {
     const restaurantA = makeRestaurant({ id: 'aaaa', name: 'Restaurant A' });
     const restaurantB = makeRestaurant({ id: 'bbbb', name: 'Restaurant B' });
+    mockSpinPrechecks();
     mockPool.query
       .mockResolvedValueOnce({ rows: [restaurantA, restaurantB] })
       .mockResolvedValueOnce({ rows: [] })
@@ -149,11 +165,56 @@ describe('POST /api/spins', () => {
   });
 
   test('returns 422 when no eligible restaurants', async () => {
+    mockSpinPrechecks();
     mockPool.query
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [makeRestaurant()] })
+      .mockResolvedValueOnce({ rows: [{ restaurant_id: UUID }] })
+      ;
     const res = await request(app).post('/api/spins').send({ spun_by: 'Bob' });
     expect(res.status).toBe(422);
+  });
+
+  test('respects the recent non-vetoed 7 day exclusion', async () => {
+    const restaurantA = makeRestaurant({ id: 'aaaa', name: 'Restaurant A' });
+    const restaurantB = makeRestaurant({ id: 'bbbb', name: 'Restaurant B' });
+    mockSpinPrechecks();
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [restaurantA, restaurantB] })
+      .mockResolvedValueOnce({ rows: [{ restaurant_id: 'aaaa' }] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID2, restaurant_id: 'bbbb', spun_by: 'Bob', is_vetoed: false, created_at: new Date().toISOString() }] });
+    const res = await request(app).post('/api/spins').send({ spun_by: 'Bob' });
+    expect(res.status).toBe(201);
+    expect(res.body.restaurant.id).toBe('bbbb');
+  });
+});
+
+describe('GET /api/spins/recent-ids', () => {
+  test('returns unique recent non-vetoed restaurant ids', async () => {
+    mockPool.query.mockResolvedValueOnce({
+      rows: [
+        { restaurant_id: UUID },
+        { restaurant_id: UUID },
+        { restaurant_id: 'bbbb' },
+        { restaurant_id: null },
+      ],
+    });
+    const res = await request(app).get('/api/spins/recent-ids');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ restaurant_ids: [UUID, 'bbbb'] });
+  });
+
+  test('accepts a custom days window', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/spins/recent-ids?days=3');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ restaurant_ids: [] });
+  });
+
+  test('returns an empty array when there are no recent spins', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/spins/recent-ids');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ restaurant_ids: [] });
   });
 });
 
@@ -213,6 +274,16 @@ describe('POST /api/spins/:id/veto', () => {
     expect(res.status).toBe(201);
     expect(res.body.restaurant.id).toBe(otherId);
     expect(res.body.restaurant.id).not.toBe(vetoedId);
+  });
+
+  test('returns 422 after veto when all remaining options are excluded by recent spins', async () => {
+    const vetoedId = 'aaaa';
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ id: UUID, restaurant_id: vetoedId, is_vetoed: true }] })
+      .mockResolvedValueOnce({ rows: [makeRestaurant({ id: vetoedId }), makeRestaurant({ id: 'bbbb' })] })
+      .mockResolvedValueOnce({ rows: [{ restaurant_id: 'bbbb' }] });
+    const res = await request(app).post(`/api/spins/${UUID}/veto`).send({ spun_by: 'Bob' });
+    expect(res.status).toBe(422);
   });
 });
 
