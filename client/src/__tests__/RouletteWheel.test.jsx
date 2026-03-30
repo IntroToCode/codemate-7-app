@@ -32,6 +32,22 @@ describe('RouletteWheel rendering', () => {
     expect(svg).toHaveAttribute('aria-label', 'Casino roulette wheel');
   });
 
+  test('marks the wheel wrapper as disabled when disabled is true', () => {
+    const { container } = render(
+      <RouletteWheel
+        restaurants={[{ id: 1, name: 'Solo Spot' }]}
+        disabled
+        spinning={false}
+        winnerIndex={null}
+        onSpinComplete={() => {}}
+      />
+    );
+    const wrapper = container.querySelector('.roulette-wrap');
+    expect(wrapper).toBeInTheDocument();
+    expect(wrapper).toHaveClass('is-disabled');
+    expect(wrapper).toHaveAttribute('aria-disabled', 'true');
+  });
+
   test('renders correct number of segments', () => {
     const { container } = render(
       <RouletteWheel
