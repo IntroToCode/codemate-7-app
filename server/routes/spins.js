@@ -3,6 +3,23 @@ const router = express.Router();
 const pool = require('../db/pool');
 const { selectRestaurant } = require('../lib/spinAlgorithm');
 
+const RECENT_EXCLUSION_DAYS = 7;
+
+function getRecentSpinCutoff(days = RECENT_EXCLUSION_DAYS) {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+async function getRecentNonVetoedSpins(days = RECENT_EXCLUSION_DAYS) {
+  const cutoff = getRecentSpinCutoff(days);
+  const { rows } = await pool.query(
+    `SELECT restaurant_id FROM spins
+     WHERE is_vetoed = FALSE AND created_at >= $1
+     ORDER BY created_at DESC`,
+    [cutoff]
+  );
+  return rows;
+}
+
 async function getSpinLimit(role) {
   const key = role === 'admin' ? 'admin_spin_limit' : 'guest_spin_limit';
   const { rows } = await pool.query(
@@ -79,6 +96,22 @@ router.get('/remaining', async (req, res) => {
   }
 });
 
+router.get('/recent-ids', async (req, res) => {
+  const parsedDays = parseInt(req.query.days, 10);
+  const days = Number.isFinite(parsedDays) && parsedDays > 0
+    ? Math.min(parsedDays, 30)
+    : RECENT_EXCLUSION_DAYS;
+
+  try {
+    const recentSpins = await getRecentNonVetoedSpins(days);
+    const restaurantIds = [...new Set(recentSpins.map((spin) => spin.restaurant_id).filter(Boolean))];
+    res.json({ restaurant_ids: restaurantIds });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
@@ -128,13 +161,11 @@ router.post('/', async (req, res) => {
 
     const [restaurantsResult, recentSpinsResult] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
-      pool.query(
-        'SELECT restaurant_id FROM spins WHERE is_vetoed = FALSE ORDER BY created_at DESC LIMIT 5'
-      ),
+      getRecentNonVetoedSpins(),
     ]);
 
     const restaurants = restaurantsResult.rows;
-    const recentSpins = recentSpinsResult.rows;
+    const recentSpins = recentSpinsResult;
 
     const selected = selectRestaurant(restaurants, recentSpins, exclude_recent, skip_ids);
 
@@ -170,9 +201,7 @@ router.post('/:id/veto', async (req, res) => {
 
     const [restaurantsResult, recentSpinsResult] = await Promise.all([
       pool.query('SELECT * FROM restaurants WHERE active = TRUE'),
-      pool.query(
-        'SELECT restaurant_id FROM spins WHERE is_vetoed = FALSE ORDER BY created_at DESC LIMIT 5'
-      ),
+      getRecentNonVetoedSpins(),
     ]);
 
     const vetoSkipIds = vetoedRestaurantId
@@ -181,7 +210,7 @@ router.post('/:id/veto', async (req, res) => {
 
     const selected = selectRestaurant(
       restaurantsResult.rows,
-      recentSpinsResult.rows,
+      recentSpinsResult,
       exclude_recent,
       vetoSkipIds
     );

@@ -24,7 +24,7 @@ describe('selectRestaurant', () => {
     expect(result.id).toBe('a');
   });
 
-  test('excludes last 5 spin restaurants when excludeRecent is true', () => {
+  test('excludes provided recent spin restaurants when excludeRecent is true', () => {
     const restaurants = [
       makeRestaurant('a'),
       makeRestaurant('b'),
@@ -49,12 +49,11 @@ describe('selectRestaurant', () => {
     expect(results.has('a') || results.has('b')).toBe(true);
   });
 
-  test('falls back to full active list when all active restaurants are in last 5', () => {
+  test('returns null when all active restaurants are in recent spins', () => {
     const restaurants = [makeRestaurant('a'), makeRestaurant('b')];
     const recentSpins = [makeSpin('a'), makeSpin('b')];
     const result = selectRestaurant(restaurants, recentSpins, true);
-    expect(result).not.toBeNull();
-    expect(['a', 'b']).toContain(result.id);
+    expect(result).toBeNull();
   });
 
   test('works when fewer than 5 prior spins exist', () => {
@@ -68,15 +67,12 @@ describe('selectRestaurant', () => {
     expect(results.has('a')).toBe(false);
   });
 
-  test('only considers up to 5 most recent spins for exclusion', () => {
-    const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
-    const recentSpins = [
-      makeSpin('a'), makeSpin('b'),
-      makeSpin('c'), makeSpin('a'), makeSpin('b'),
-      makeSpin('c'),
-    ];
+  test('excludes all provided recent spins, not just five entries', () => {
+    const restaurants = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map(makeRestaurant);
+    const recentSpins = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(makeSpin);
     const result = selectRestaurant(restaurants, recentSpins, true);
     expect(result).not.toBeNull();
+    expect(result.id).toBe('i');
   });
 
   test('returns only active restaurants', () => {
@@ -108,5 +104,11 @@ describe('selectRestaurant', () => {
     expect(['b', 'c']).toContain(resultWith.id);
     const resultWithout = selectRestaurant(restaurants, [], false, []);
     expect(['a', 'b', 'c']).toContain(resultWithout.id);
+  });
+
+  test('returns null when recent spins exclude everything left after skip_ids', () => {
+    const restaurants = [makeRestaurant('a'), makeRestaurant('b'), makeRestaurant('c')];
+    const result = selectRestaurant(restaurants, [makeSpin('a'), makeSpin('b')], true, ['c']);
+    expect(result).toBeNull();
   });
 });

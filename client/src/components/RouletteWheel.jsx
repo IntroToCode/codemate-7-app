@@ -63,7 +63,7 @@ function playWin() {
 
 const WHEEL_SPEED = (2 * Math.PI) / 900;
 
-export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete }) {
+export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete, disabled = false }) {
   const wheelGroupRef = useRef(null);
   const rafRef = useRef(null);
   const wheelAngle = useRef(0);
@@ -80,7 +80,8 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     onCompleteRef.current = onSpinComplete;
   }, [onSpinComplete]);
 
-  const n = Math.max(2, Math.min(8, restaurants.length));
+  const singleRestaurant = restaurants.length === 1;
+  const n = Math.max(1, Math.min(8, restaurants.length));
   const sa = (2 * Math.PI) / n;
 
   useEffect(() => {
@@ -187,7 +188,10 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
   const rimDiamonds = Array.from({ length: 18 });
 
   return (
-    <div className="roulette-wrap">
+    <div
+      className={`roulette-wrap${disabled ? ' is-disabled' : ''}`}
+      aria-disabled={disabled ? 'true' : 'false'}
+    >
       <svg
         viewBox={`-${SVG_SIZE} -${SVG_SIZE} ${SVG_SIZE * 2} ${SVG_SIZE * 2}`}
         className="roulette-svg"
@@ -253,10 +257,10 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <g ref={wheelGroupRef}>
           {/* Wheel segments */}
           {restaurants.map((r, i) => {
-            const midA = -Math.PI / 2 + (i + 0.5) * sa;
-            const tx = (textR * Math.cos(midA)).toFixed(2);
-            const ty = (textR * Math.sin(midA)).toFixed(2);
-            const deg = ((midA * 180) / Math.PI + 90).toFixed(1);
+            const midA = singleRestaurant ? -Math.PI / 2 : -Math.PI / 2 + (i + 0.5) * sa;
+            const tx = singleRestaurant ? '0' : (textR * Math.cos(midA)).toFixed(2);
+            const ty = singleRestaurant ? (-textR).toFixed(2) : (textR * Math.sin(midA)).toFixed(2);
+            const deg = singleRestaurant ? '0' : ((midA * 180) / Math.PI + 90).toFixed(1);
             const color = CASINO_COLORS[i % CASINO_COLORS.length];
             const isWinner = done && winnerIndex === i;
 
@@ -266,12 +270,21 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
                 className={`rw-seg${entering ? ' rw-seg-enter' : ''}${isWinner ? ' rw-seg-win' : ''}`}
                 style={entering ? { animationDelay: `${i * 0.09}s` } : undefined}
               >
-                <path
-                  d={buildSegPath(i, n)}
-                  fill={isWinner ? '#C9A84C' : color}
-                  stroke="#111"
-                  strokeWidth="2"
-                />
+                {singleRestaurant ? (
+                  <circle
+                    r={WHEEL_R}
+                    fill={isWinner ? '#C9A84C' : color}
+                    stroke="#111"
+                    strokeWidth="2"
+                  />
+                ) : (
+                  <path
+                    d={buildSegPath(i, n)}
+                    fill={isWinner ? '#C9A84C' : color}
+                    stroke="#111"
+                    strokeWidth="2"
+                  />
+                )}
                 <text
                   x={tx}
                   y={ty}
@@ -293,7 +306,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
           })}
 
           {/* Segment divider lines */}
-          {restaurants.map((_, i) => {
+          {!singleRestaurant && restaurants.map((_, i) => {
             const a = -Math.PI / 2 + i * sa;
             const x = (WHEEL_R * Math.cos(a)).toFixed(2);
             const y = (WHEEL_R * Math.sin(a)).toFixed(2);
