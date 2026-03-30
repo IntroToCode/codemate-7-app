@@ -144,7 +144,12 @@ export default function SpinPage({ onSpin }) {
       return;
     }
 
-    const available = eligibleRestaurants;
+    const available = activeOnWheel();
+    const allExcludedByRecent =
+      excludeRecent &&
+      !loadingRecent &&
+      available.filter((r) => !recentExcludedIds.includes(r.id)).length < 2 &&
+      available.length >= 2;
     if (available.length < 2) {
       setError(
         allExcludedByRecent
@@ -240,6 +245,13 @@ export default function SpinPage({ onSpin }) {
   const filtersActive = cuisineFilter !== '' || priceFilter !== null;
   const noMatch = !loadingRest && filtersActive && available.length === 0;
   const tooFew = !loadingRest && available.length < 2;
+  const allExcludedByRecent =
+    excludeRecent &&
+    !loadingRecent &&
+    available.filter((r) => !recentExcludedIds.includes(r.id)).length < 2 &&
+    available.length >= 2;
+  const atLimit = spinInfo ? !spinInfo.unlimited && spinInfo.remaining <= 0 : false;
+  const wheelDisabled = spinning || vetoing;
 
   return (
     <div className="spin-page">
