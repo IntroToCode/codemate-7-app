@@ -96,6 +96,12 @@ export default function SpinPage({ onSpin }) {
       .finally(() => setLoadingRest(false));
   }, []);
 
+  useEffect(() => {
+    fetchRestaurants();
+    fetchRecentIds();
+    fetchSpinInfo();
+  }, [fetchRestaurants, fetchRecentIds, fetchSpinInfo]);
+
   const cuisineOptions = [...new Set(
     allRestaurants.map((r) => r.cuisine).filter(Boolean)
   )].sort();
