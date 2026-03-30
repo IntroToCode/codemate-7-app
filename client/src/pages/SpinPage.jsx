@@ -111,6 +111,13 @@ export default function SpinPage({ onSpin }) {
     return afterFilters.filter((r) => !tempDisabled.has(r.id));
   }, [allRestaurants, tempDisabled, cuisineFilter, priceFilter]);
 
+  useEffect(() => {
+    if (!spinning && !vetoing) {
+      const pool = buildWheelPool(activeOnWheel());
+      setWheelRestaurants(pool);
+    }
+  }, [allRestaurants, cuisineFilter, priceFilter, tempDisabled]);
+
   function clearFilters() {
     setCuisineFilter('');
     setPriceFilter(null);
