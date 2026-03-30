@@ -262,6 +262,8 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
         <g ref={wheelGroupRef}>
           {/* Wheel segments */}
           {restaurants.map((r, i) => {
+            const labelLayout = labelLayouts[i];
+            const textR = labelLayout.anchorRadius;
             const midA = singleRestaurant ? -Math.PI / 2 : -Math.PI / 2 + (i + 0.5) * sa;
             const tx = singleRestaurant ? '0' : (textR * Math.cos(midA)).toFixed(2);
             const ty = singleRestaurant ? (-textR).toFixed(2) : (textR * Math.sin(midA)).toFixed(2);
