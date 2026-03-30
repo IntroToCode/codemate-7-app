@@ -49,6 +49,8 @@ export default function SpinPage({ onSpin }) {
 
   const [spinInfo, setSpinInfo] = useState(null);
 
+  const wheelReady = !loadingRest && !loadingRecent;
+
   const fetchSpinInfo = useCallback(() => {
     if (!userName) return;
     return fetch(`/api/spins/remaining?user_name=${encodeURIComponent(userName)}`)
