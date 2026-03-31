@@ -7,6 +7,7 @@ const mockPool = {
 
 jest.mock('../db/pool', () => mockPool);
 jest.mock('../db/migrate', () => jest.fn().mockResolvedValue());
+jest.mock('../lib/logActivity', () => jest.fn().mockResolvedValue(undefined));
 
 const app = require('../server');
 

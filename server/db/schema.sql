@@ -44,3 +44,13 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(first_name, last_name)
 );
+
+CREATE TABLE IF NOT EXISTS activity_log (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_name   VARCHAR(100) NOT NULL,
+  action      VARCHAR(50) NOT NULL,
+  entity_type VARCHAR(50),
+  entity_id   UUID,
+  details     JSONB,
+  created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

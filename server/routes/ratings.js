@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
+const logActivity = require('../lib/logActivity');
 
 router.post('/', async (req, res) => {
   const { restaurant_id, rated_by, score } = req.body;
@@ -19,6 +20,15 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [restaurant_id, rated_by, score]
     );
+
+    await logActivity({
+      userName: rated_by,
+      action: 'rating_cast',
+      entityType: 'rating',
+      entityId: result.rows[0].id,
+      details: { restaurant_id, score },
+    });
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);

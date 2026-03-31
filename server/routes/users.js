@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const pool = require('../db/pool');
+const logActivity = require('../lib/logActivity');
 
 const router = Router();
 
@@ -52,6 +53,13 @@ router.post('/register', async (req, res) => {
        RETURNING id, first_name, last_name, role, created_at`,
       [first, last]
     );
+    await logActivity({
+      userName: `${first} ${last}`,
+      action: 'user_registered',
+      entityType: 'user',
+      entityId: rows[0].id,
+      details: {},
+    });
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('Register error:', err.message);

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 const { validateZipCode, searchWithSmartFill } = require('../lib/places');
+const logActivity = require('../lib/logActivity');
 
 router.get('/search', async (req, res) => {
   const { zip, keyword, page_token, hide_duplicates } = req.query;
@@ -101,7 +102,17 @@ router.post('/', async (req, res) => {
        RETURNING *`,
       [name, cuisine || null, price_range || null, address || null, created_by, google_place_id || null]
     );
-    res.status(201).json(result.rows[0]);
+    const restaurant = result.rows[0];
+    if (restaurant) {
+      await logActivity({
+        userName: created_by,
+        action: 'restaurant_added',
+        entityType: 'restaurant',
+        entityId: restaurant.id,
+        details: { restaurant_name: name, cuisine: cuisine || null },
+      });
+    }
+    res.status(201).json(restaurant);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -129,7 +140,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const restaurantResult = await pool.query(
-      'SELECT created_by FROM restaurants WHERE id = $1',
+      'SELECT created_by, name FROM restaurants WHERE id = $1',
       [id]
     );
     if (restaurantResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -151,6 +162,15 @@ router.put('/:id', async (req, res) => {
       [name, cuisine, price_range, address, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    await logActivity({
+      userName,
+      action: 'restaurant_edited',
+      entityType: 'restaurant',
+      entityId: id,
+      details: { restaurant_name: result.rows[0].name },
+    });
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -184,7 +204,17 @@ router.patch('/:id/toggle', async (req, res) => {
       [id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    res.json(result.rows[0]);
+
+    const updated = result.rows[0];
+    await logActivity({
+      userName,
+      action: updated.active ? 'restaurant_activated' : 'restaurant_deactivated',
+      entityType: 'restaurant',
+      entityId: id,
+      details: { restaurant_name: updated.name },
+    });
+
+    res.json(updated);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
@@ -201,7 +231,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const restaurantResult = await pool.query(
-      'SELECT id, created_by FROM restaurants WHERE id = $1',
+      'SELECT id, created_by, name FROM restaurants WHERE id = $1',
       [id]
     );
     if (restaurantResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -212,7 +242,17 @@ router.delete('/:id', async (req, res) => {
       return res.status(403).json({ error: 'Only the creator can delete this restaurant.' });
     }
 
+    const restaurantName = restaurantResult.rows[0].name;
     await pool.query('DELETE FROM restaurants WHERE id = $1', [id]);
+
+    await logActivity({
+      userName,
+      action: 'restaurant_deleted',
+      entityType: 'restaurant',
+      entityId: null,
+      details: { restaurant_name: restaurantName },
+    });
+
     res.json({ deleted: id });
   } catch (err) {
     console.error(err);

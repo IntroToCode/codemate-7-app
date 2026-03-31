@@ -129,7 +129,7 @@ export default function RestaurantList() {
     const res = await fetch('/api/tags', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ restaurant_id: restaurantId, label: label.trim() }),
+      body: JSON.stringify({ restaurant_id: restaurantId, label: label.trim(), added_by: userName }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -141,7 +141,11 @@ export default function RestaurantList() {
   }
 
   async function handleDeleteTag(tagId) {
-    const res = await fetch(`/api/tags/${tagId}`, { method: 'DELETE' });
+    const res = await fetch(`/api/tags/${tagId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ removed_by: userName }),
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(err.error || 'Failed to delete tag');
