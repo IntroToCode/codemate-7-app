@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "MBA App — root package for running tests",
   "scripts": {
+    "build": "cd client && npm install && npm run build",
     "test": "cd server && npm test"
   },
   "dependencies": {
