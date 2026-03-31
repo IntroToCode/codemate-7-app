@@ -48,6 +48,23 @@ describe('RouletteWheel rendering', () => {
     expect(wrapper).toHaveAttribute('aria-disabled', 'true');
   });
 
+  test('marks the wheel as busy without dimming it when only busy is true', () => {
+    const { container } = render(
+      <RouletteWheel
+        restaurants={mockRestaurants}
+        busy
+        spinning={false}
+        winnerIndex={null}
+        onSpinComplete={() => {}}
+      />
+    );
+    const wrapper = container.querySelector('.roulette-wrap');
+    expect(wrapper).toBeInTheDocument();
+    expect(wrapper).not.toHaveClass('is-disabled');
+    expect(wrapper).toHaveAttribute('aria-disabled', 'false');
+    expect(wrapper).toHaveAttribute('aria-busy', 'true');
+  });
+
   test('uses a circular clip path for a single restaurant wheel', () => {
     const { container } = render(
       <RouletteWheel

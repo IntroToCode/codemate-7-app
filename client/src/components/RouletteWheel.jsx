@@ -64,7 +64,7 @@ function playWin() {
 
 const WHEEL_SPEED = (2 * Math.PI) / 900;
 
-export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete, disabled = false }) {
+export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete, disabled = false, busy = false }) {
   const wheelGroupRef = useRef(null);
   const textRefs = useRef([]);
   const rafRef = useRef(null);
@@ -234,6 +234,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     <div
       className={`roulette-wrap${disabled ? ' is-disabled' : ''}`}
       aria-disabled={disabled ? 'true' : 'false'}
+      aria-busy={busy ? 'true' : 'false'}
     >
       <svg
         viewBox={`-${SVG_SIZE} -${SVG_SIZE} ${SVG_SIZE * 2} ${SVG_SIZE * 2}`}

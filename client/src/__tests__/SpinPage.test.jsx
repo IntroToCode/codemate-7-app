@@ -1,20 +1,24 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SpinPage from '../pages/SpinPage';
 import { UserProvider } from '../context/UserContext';
 import { TempDisableProvider } from '../context/TempDisableContext';
 
-jest.mock('../components/RouletteWheel', () => function MockRouletteWheel({ restaurants, disabled }) {
+jest.mock('../components/RouletteWheel', () => function MockRouletteWheel({ restaurants, disabled, busy, winnerIndex, onSpinComplete }) {
   return (
     <div
       data-testid="wheel"
       data-disabled={disabled ? 'true' : 'false'}
+      data-busy={busy ? 'true' : 'false'}
+      data-winner-index={winnerIndex ?? ''}
       aria-disabled={disabled ? 'true' : 'false'}
+      aria-busy={busy ? 'true' : 'false'}
     >
       {restaurants.map((restaurant) => (
         <span key={restaurant.id}>{restaurant.name}</span>
       ))}
+      <button type="button" onClick={onSpinComplete}>Complete Wheel</button>
     </div>
   );
 });
@@ -46,6 +50,20 @@ function renderSpinPage() {
       </TempDisableProvider>
     </UserProvider>
   );
+}
+
+async function flushPromises() {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function advanceTimers(ms) {
+  await act(async () => {
+    jest.advanceTimersByTime(ms);
+  });
+  await flushPromises();
 }
 
 describe('SpinPage recent exclusion UI', () => {
@@ -222,7 +240,8 @@ describe('SpinPage recent exclusion UI', () => {
     await waitFor(() => expect(screen.getByLabelText(/cuisine/i)).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText(/cuisine/i), { target: { value: 'Italian' } });
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('wheel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
 
     await waitFor(() => {
@@ -271,6 +290,176 @@ describe('SpinPage recent exclusion UI', () => {
       expect(screen.getByText(/you have reached your spin limit/i)).toBeInTheDocument();
     });
     expect(global.fetch).not.toHaveBeenCalledWith('/api/spins', expect.any(Object));
+  });
+
+  test('keeps the wheel colorful while spinning but still locks the filters', async () => {
+    jest.useFakeTimers();
+    restaurants = [
+      { id: 'a', name: 'Alpha Cafe', cuisine: 'Italian', active: true },
+      { id: 'b', name: 'Bravo Bistro', cuisine: 'Italian', active: true },
+      { id: 'c', name: 'Charlie Deli', cuisine: 'Mexican', active: true },
+    ];
+
+    global.fetch = jest.fn((url, options) => {
+      if (url === '/api/restaurants') return okJson(restaurants);
+      if (String(url).startsWith('/api/spins/recent-ids')) return okJson({ restaurant_ids: [] });
+      if (String(url).startsWith('/api/spins/remaining')) return okJson(spinInfo);
+      if (url === '/api/spins' && options?.method === 'POST') {
+        return okJson({ spin: { id: 'spin-1' }, restaurant: { id: 'a', name: 'Alpha Cafe' } });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderSpinPage();
+
+    await flushPromises();
+    await waitFor(() => expect(screen.getByTestId('wheel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
+
+    await flushPromises();
+
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-busy', 'true');
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-disabled', 'false');
+    expect(screen.getByLabelText(/cuisine/i)).toBeDisabled();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+  });
+
+  test('keeps the completed wheel parked after recent-id refresh and locks filter controls until the next spin', async () => {
+    jest.useFakeTimers();
+    restaurants = [
+      { id: 'a', name: 'Alpha Cafe', cuisine: 'Italian', active: true },
+      { id: 'b', name: 'Bravo Bistro', cuisine: 'Italian', active: true },
+      { id: 'c', name: 'Charlie Deli', cuisine: 'Mexican', active: true },
+    ];
+    const recentResponses = [[], ['a', 'b']];
+
+    global.fetch = jest.fn((url, options) => {
+      if (url === '/api/restaurants') return okJson(restaurants);
+      if (String(url).startsWith('/api/spins/recent-ids')) {
+        return okJson({ restaurant_ids: recentResponses.shift() ?? ['a', 'b'] });
+      }
+      if (String(url).startsWith('/api/spins/remaining')) return okJson(spinInfo);
+      if (url === '/api/spins' && options?.method === 'POST') {
+        return okJson({ spin: { id: 'spin-1' }, restaurant: { id: 'a', name: 'Alpha Cafe', cuisine: 'Italian' } });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderSpinPage();
+
+    await flushPromises();
+    await waitFor(() => expect(screen.getByTestId('wheel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
+
+    await flushPromises();
+    await advanceTimers(1000);
+    await advanceTimers(4000);
+
+    await waitFor(() => expect(screen.getByTestId('wheel')).toHaveAttribute('data-winner-index', '0'));
+    fireEvent.click(screen.getByRole('button', { name: /complete wheel/i }));
+
+    await waitFor(() => expect(screen.getByText(/today's lunch pick is/i)).toBeInTheDocument());
+    await flushPromises();
+
+    expect(within(screen.getByTestId('wheel')).getByText('Alpha Cafe')).toBeInTheDocument();
+    expect(within(screen.getByTestId('wheel')).getByText('Bravo Bistro')).toBeInTheDocument();
+    expect(within(screen.getByTestId('wheel')).getByText('Charlie Deli')).toBeInTheDocument();
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-disabled', 'false');
+    expect(screen.getByRole('button', { name: /spin again/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/cuisine/i)).toBeDisabled();
+    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(screen.getByText(/start another spin to update filters or refresh the wheel pool/i)).toBeInTheDocument();
+  });
+
+  test('starting the next spin clears the parked winner and result immediately', async () => {
+    jest.useFakeTimers();
+    restaurants = [
+      { id: 'a', name: 'Alpha Cafe', active: true },
+      { id: 'b', name: 'Bravo Bistro', active: true },
+      { id: 'c', name: 'Charlie Deli', active: true },
+    ];
+    const winners = ['a', 'b'];
+
+    global.fetch = jest.fn((url, options) => {
+      if (url === '/api/restaurants') return okJson(restaurants);
+      if (String(url).startsWith('/api/spins/recent-ids')) return okJson({ restaurant_ids: [] });
+      if (String(url).startsWith('/api/spins/remaining')) return okJson(spinInfo);
+      if (url === '/api/spins' && options?.method === 'POST') {
+        const winnerId = winners.shift() || 'b';
+        const winner = restaurants.find((restaurant) => restaurant.id === winnerId);
+        return okJson({ spin: { id: `spin-${winnerId}` }, restaurant: winner });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderSpinPage();
+
+    await flushPromises();
+    await waitFor(() => expect(screen.getByTestId('wheel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
+
+    await flushPromises();
+    await advanceTimers(1000);
+    await advanceTimers(4000);
+    await waitFor(() => expect(screen.getByTestId('wheel')).toHaveAttribute('data-winner-index', '0'));
+    fireEvent.click(screen.getByRole('button', { name: /complete wheel/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin again/i })).toBeInTheDocument());
+    await flushPromises();
+    act(() => {
+      screen.getByRole('button', { name: /spin again/i }).click();
+    });
+    await flushPromises();
+
+    expect(screen.queryByText(/today's lunch pick is/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-winner-index', '');
+  });
+
+  test('veto re-spin clears the parked winner before the new run begins', async () => {
+    jest.useFakeTimers();
+    restaurants = [
+      { id: 'a', name: 'Alpha Cafe', active: true },
+      { id: 'b', name: 'Bravo Bistro', active: true },
+      { id: 'c', name: 'Charlie Deli', active: true },
+    ];
+
+    global.fetch = jest.fn((url, options) => {
+      if (url === '/api/restaurants') return okJson(restaurants);
+      if (String(url).startsWith('/api/spins/recent-ids')) return okJson({ restaurant_ids: [] });
+      if (String(url).startsWith('/api/spins/remaining')) return okJson(spinInfo);
+      if (url === '/api/spins' && options?.method === 'POST') {
+        return okJson({ spin: { id: 'spin-1' }, restaurant: { id: 'a', name: 'Alpha Cafe' } });
+      }
+      if (url === '/api/spins/spin-1/veto' && options?.method === 'POST') {
+        return okJson({ spin: { id: 'spin-2' }, restaurant: { id: 'b', name: 'Bravo Bistro' } });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderSpinPage();
+
+    await flushPromises();
+    await advanceTimers(0);
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
+
+    await flushPromises();
+    await advanceTimers(1000);
+    await advanceTimers(4000);
+    await waitFor(() => expect(screen.getByTestId('wheel')).toHaveAttribute('data-winner-index', '0'));
+    fireEvent.click(screen.getByRole('button', { name: /complete wheel/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /veto/i })).toBeInTheDocument());
+    await flushPromises();
+    act(() => {
+      screen.getByRole('button', { name: /veto/i }).click();
+    });
+
+    await waitFor(() => expect(screen.queryByText(/today's lunch pick is/i)).not.toBeInTheDocument());
+    expect(screen.getByTestId('wheel')).toHaveAttribute('data-winner-index', '');
   });
 
 });
