@@ -12,6 +12,8 @@ const app = require('../server');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPool.query.mockReset();
+  mockPool.connect.mockReset();
   mockPool.connect.mockImplementation((cb) => cb(null, { release: jest.fn() }, jest.fn()));
 });
 
@@ -114,15 +116,23 @@ describe('PATCH /api/restaurants/:id/toggle', () => {
 
 describe('DELETE /api/restaurants/:id', () => {
   test('deletes a restaurant', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [{ id: UUID }] });
-    const res = await request(app).delete(`/api/restaurants/${UUID}`);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID }] });
+    const res = await request(app)
+      .delete(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(200);
     expect(res.body.deleted).toBe(UUID);
   });
 
   test('returns 404 if not found', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app).delete(`/api/restaurants/${UUID}`);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .delete(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(404);
   });
 });

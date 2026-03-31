@@ -12,15 +12,21 @@ const app = require('../server');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPool.query.mockReset();
+  mockPool.connect.mockReset();
   mockPool.connect.mockImplementation((cb) => cb(null, { release: jest.fn() }, jest.fn()));
 });
 
 const UUID = '11111111-1111-1111-1111-111111111111';
+const PASSWORD = 'pw1234';
 
 const makeProfile = (overrides = {}) => ({
   id: UUID,
   first_name: 'Jane',
   last_name: 'Doe',
+  role: 'guest',
+  password: PASSWORD,
+  has_password: true,
   created_at: new Date().toISOString(),
   ...overrides,
 });
@@ -33,7 +39,7 @@ describe('POST /api/users/register', () => {
 
     const res = await request(app)
       .post('/api/users/register')
-      .send({ firstName: 'Jane', lastName: 'Doe' });
+      .send({ firstName: 'Jane', lastName: 'Doe', password: PASSWORD });
 
     expect(res.status).toBe(201);
     expect(res.body.first_name).toBe('Jane');
@@ -46,7 +52,7 @@ describe('POST /api/users/register', () => {
 
     const res = await request(app)
       .post('/api/users/register')
-      .send({ firstName: 'Jane', lastName: 'Doe' });
+      .send({ firstName: 'Jane', lastName: 'Doe', password: PASSWORD });
 
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/already exists/i);
@@ -83,7 +89,7 @@ describe('POST /api/users/login', () => {
 
     const res = await request(app)
       .post('/api/users/login')
-      .send({ firstName: 'Jane', lastName: 'Doe' });
+      .send({ firstName: 'Jane', lastName: 'Doe', password: PASSWORD });
 
     expect(res.status).toBe(200);
     expect(res.body.first_name).toBe('Jane');
@@ -95,7 +101,7 @@ describe('POST /api/users/login', () => {
 
     const res = await request(app)
       .post('/api/users/login')
-      .send({ firstName: 'Unknown', lastName: 'Person' });
+      .send({ firstName: 'Unknown', lastName: 'Person', password: PASSWORD });
 
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/no profile found/i);
@@ -122,8 +128,8 @@ describe('GET /api/users/all', () => {
   it('returns list of all profiles with id and names only', async () => {
     mockPool.query.mockResolvedValueOnce({
       rows: [
-        { id: UUID, first_name: 'Jane', last_name: 'Doe' },
-        { id: '22222222-2222-2222-2222-222222222222', first_name: 'John', last_name: 'Smith' },
+        { id: UUID, first_name: 'Jane', last_name: 'Doe', role: 'guest', has_password: true },
+        { id: '22222222-2222-2222-2222-222222222222', first_name: 'John', last_name: 'Smith', role: 'admin', has_password: false },
       ],
     });
 
