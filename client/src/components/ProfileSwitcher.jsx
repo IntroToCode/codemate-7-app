@@ -7,9 +7,6 @@ export default function ProfileSwitcher() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [switchTarget, setSwitchTarget] = useState(null);
-  const [switchPassword, setSwitchPassword] = useState('');
-  const [switchError, setSwitchError] = useState('');
   const [switchLoading, setSwitchLoading] = useState(false);
   const ref = useRef(null);
 
@@ -31,52 +28,33 @@ export default function ProfileSwitcher() {
     function handleClickOutside(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
-        setSwitchTarget(null);
-        setSwitchPassword('');
-        setSwitchError('');
       }
     }
     if (open) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  function handleSwitchClick(profile) {
-    if (!profile.has_password) {
-      logout();
-      setOpen(false);
-      return;
-    }
-    setSwitchTarget(profile);
-    setSwitchPassword('');
-    setSwitchError('');
-  }
-
-  async function handleSwitchConfirm(e) {
-    e.preventDefault();
-    if (!switchTarget) return;
-    setSwitchError('');
+  async function handleSwitchClick(profile) {
+    if (profile.id === userId) return;
     setSwitchLoading(true);
     try {
       const res = await fetch('/api/users/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: switchTarget.first_name,
-          lastName: switchTarget.last_name,
-          password: switchPassword,
+          firstName: profile.first_name,
+          lastName: profile.last_name,
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setSwitchError(data.error || 'Login failed.');
+        setError(data.error || 'Switch failed.');
         return;
       }
       saveUser(data);
       setOpen(false);
-      setSwitchTarget(null);
-      setSwitchPassword('');
     } catch {
-      setSwitchError('Network error.');
+      setError('Network error.');
     } finally {
       setSwitchLoading(false);
     }
@@ -104,7 +82,7 @@ export default function ProfileSwitcher() {
             <div className="switcher-empty">No other profiles found.</div>
           )}
 
-          {!loading && !error && !switchTarget && (
+          {!loading && !error && (
             <ul className="switcher-list">
               {profiles.map((p) => {
                 const isCurrent = p.id === userId;
@@ -112,8 +90,8 @@ export default function ProfileSwitcher() {
                   <li key={p.id}>
                     <button
                       className={`switcher-item ${isCurrent ? 'switcher-item-current' : ''}`}
-                      onClick={() => !isCurrent && handleSwitchClick(p)}
-                      disabled={isCurrent}
+                      onClick={() => handleSwitchClick(p)}
+                      disabled={isCurrent || switchLoading}
                     >
                       <span className="switcher-name">
                         {p.first_name} {p.last_name}
@@ -124,39 +102,6 @@ export default function ProfileSwitcher() {
                 );
               })}
             </ul>
-          )}
-
-          {switchTarget && (
-            <form className="switcher-password-form" onSubmit={handleSwitchConfirm}>
-              <div className="switcher-password-label">
-                Password for {switchTarget.first_name} {switchTarget.last_name}:
-              </div>
-              <input
-                className="form-input form-input-sm"
-                type="password"
-                placeholder="Enter password"
-                value={switchPassword}
-                onChange={(e) => setSwitchPassword(e.target.value)}
-                autoFocus
-              />
-              {switchError && <div className="switcher-error">{switchError}</div>}
-              <div className="switcher-password-actions">
-                <button
-                  className="btn btn-primary btn-sm"
-                  type="submit"
-                  disabled={!switchPassword || switchLoading}
-                >
-                  {switchLoading ? '...' : 'Switch'}
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  type="button"
-                  onClick={() => { setSwitchTarget(null); setSwitchPassword(''); setSwitchError(''); }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
           )}
 
           <div className="switcher-footer">

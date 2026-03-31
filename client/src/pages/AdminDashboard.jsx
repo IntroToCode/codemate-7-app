@@ -16,9 +16,6 @@ export default function AdminDashboard() {
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [pwMessage, setPwMessage] = useState('');
-  const [resetPasswordUserId, setResetPasswordUserId] = useState(null);
-  const [resetNewPw, setResetNewPw] = useState('');
-  const [resetPwMessage, setResetPwMessage] = useState('');
 
   const [spinLimits, setSpinLimits] = useState({ guest_spin_limit: 2, admin_spin_limit: -1 });
   const [guestLimitInput, setGuestLimitInput] = useState('2');
@@ -151,35 +148,6 @@ export default function AdminDashboard() {
       loadSpinUsage();
     } catch (err) {
       alert('Failed to delete user. Please try again.');
-    }
-  }
-
-  async function handleResetPassword(e) {
-    e.preventDefault();
-    setResetPwMessage('');
-    if (!resetNewPw || resetNewPw.length < 4) {
-      setResetPwMessage('Password must be at least 4 characters.');
-      return;
-    }
-    try {
-      const res = await fetch(`/api/users/${resetPasswordUserId}/admin-reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword, newPassword: resetNewPw }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setResetPwMessage(data.error || 'Failed to reset password.');
-        return;
-      }
-      setResetPwMessage('Password reset successfully!');
-      setResetNewPw('');
-      setTimeout(() => {
-        setResetPasswordUserId(null);
-        setResetPwMessage('');
-      }, 1500);
-    } catch (err) {
-      setResetPwMessage('Network error. Please try again.');
     }
   }
 
@@ -448,7 +416,7 @@ export default function AdminDashboard() {
       {activeTab === 'users' && (
         <>
           <p className="page-sub">
-            Manage user roles, reset passwords, and remove profiles.
+            Manage user roles and remove profiles.
           </p>
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -456,7 +424,6 @@ export default function AdminDashboard() {
                 <tr>
                   <th>Name</th>
                   <th>Role</th>
-                  <th>Password</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -470,11 +437,6 @@ export default function AdminDashboard() {
                     <td>
                       <span className={`badge ${u.role === 'admin' ? 'badge-active' : 'badge-inactive'}`}>
                         {u.role === 'admin' ? '🛡️ Admin' : '👤 Guest'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${u.has_password ? 'badge-active' : 'badge-inactive'}`}>
-                        {u.has_password ? '✅ Set' : '⚠️ Not set'}
                       </span>
                     </td>
                     <td>
@@ -495,50 +457,12 @@ export default function AdminDashboard() {
                           </button>
                         )}
                         <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => {
-                            setResetPasswordUserId(resetPasswordUserId === u.id ? null : u.id);
-                            setResetNewPw('');
-                            setResetPwMessage('');
-                          }}
-                        >
-                          🔑 Reset PW
-                        </button>
-                        <button
                           className="btn btn-danger btn-sm"
                           onClick={() => handleDeleteUser(u.id)}
                         >
                           🗑️ Delete
                         </button>
                       </div>
-                      {resetPasswordUserId === u.id && (
-                        <form className="reset-password-inline" onSubmit={handleResetPassword}>
-                          <input
-                            className="form-input form-input-sm"
-                            type="password"
-                            placeholder="New password (min 4 chars)"
-                            value={resetNewPw}
-                            onChange={(e) => setResetNewPw(e.target.value)}
-                            autoFocus
-                            minLength={4}
-                          />
-                          {resetPwMessage && (
-                            <span className={resetPwMessage.includes('successfully') ? 'success-text' : 'error-text'} style={{ fontSize: '0.8rem' }}>
-                              {resetPwMessage}
-                            </span>
-                          )}
-                          <div className="admin-user-actions" style={{ marginTop: '4px' }}>
-                            <button type="submit" className="btn btn-primary btn-sm">Set</button>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => { setResetPasswordUserId(null); setResetNewPw(''); setResetPwMessage(''); }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      )}
                     </td>
                   </tr>
                 ))}

@@ -54,11 +54,11 @@ async function migrate() {
     await pool.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (
+        IF EXISTS (
           SELECT 1 FROM information_schema.columns
           WHERE table_name='user_profiles' AND column_name='password'
         ) THEN
-          ALTER TABLE user_profiles ADD COLUMN password VARCHAR(255);
+          ALTER TABLE user_profiles DROP COLUMN password;
         END IF;
       END $$;
     `);
