@@ -47,8 +47,8 @@ router.post('/register', async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      `INSERT INTO user_profiles (first_name, last_name)
-       VALUES ($1, $2)
+      `INSERT INTO user_profiles (first_name, last_name, role)
+       VALUES ($1, $2, 'admin')
        RETURNING id, first_name, last_name, role, created_at`,
       [first, last]
     );

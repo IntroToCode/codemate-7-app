@@ -30,7 +30,7 @@ describe('POST /api/users/register', () => {
   it('creates a new user profile with only first and last name', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [makeProfile()] });
+      .mockResolvedValueOnce({ rows: [makeProfile({ role: 'admin' })] });
 
     const res = await request(app)
       .post('/api/users/register')
@@ -43,16 +43,20 @@ describe('POST /api/users/register', () => {
     expect(res.body).not.toHaveProperty('password');
   });
 
-  it('does not require a password to register', async () => {
+  it('automatically assigns admin role to new registrations', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [makeProfile()] });
+      .mockResolvedValueOnce({ rows: [makeProfile({ role: 'admin' })] });
 
     const res = await request(app)
       .post('/api/users/register')
       .send({ firstName: 'Jane', lastName: 'Doe' });
 
     expect(res.status).toBe(201);
+    expect(res.body.role).toBe('admin');
+
+    const insertCall = mockPool.query.mock.calls[1][0];
+    expect(insertCall).toMatch(/'admin'/);
   });
 
   it('returns 409 when profile already exists', async () => {
