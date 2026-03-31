@@ -7,6 +7,7 @@ const mockPool = {
 
 jest.mock('../db/pool', () => mockPool);
 jest.mock('../db/migrate', () => jest.fn().mockResolvedValue());
+jest.mock('../lib/logActivity', () => jest.fn().mockResolvedValue(undefined));
 
 const app = require('../server');
 
@@ -25,17 +26,15 @@ const makeProfile = (overrides = {}) => ({
   first_name: 'Jane',
   last_name: 'Doe',
   role: 'guest',
-  password: PASSWORD,
-  has_password: true,
   created_at: new Date().toISOString(),
   ...overrides,
 });
 
 describe('POST /api/users/register', () => {
-  it('creates a new user profile', async () => {
+  it('creates a new user profile with only first and last name', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [makeProfile()] });
+      .mockResolvedValueOnce({ rows: [makeProfile({ role: 'admin' })] });
 
     const res = await request(app)
       .post('/api/users/register')
@@ -45,6 +44,23 @@ describe('POST /api/users/register', () => {
     expect(res.body.first_name).toBe('Jane');
     expect(res.body.last_name).toBe('Doe');
     expect(res.body.id).toBe(UUID);
+    expect(res.body).not.toHaveProperty('password');
+  });
+
+  it('automatically assigns admin role to new registrations', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [makeProfile({ role: 'admin' })] });
+
+    const res = await request(app)
+      .post('/api/users/register')
+      .send({ firstName: 'Jane', lastName: 'Doe' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.role).toBe('admin');
+
+    const insertCall = mockPool.query.mock.calls[1][0];
+    expect(insertCall).toMatch(/'admin'/);
   });
 
   it('returns 409 when profile already exists', async () => {
@@ -84,7 +100,7 @@ describe('POST /api/users/register', () => {
 });
 
 describe('POST /api/users/login', () => {
-  it('returns user profile when found', async () => {
+  it('returns user profile without a password check', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [makeProfile()] });
 
     const res = await request(app)
@@ -94,6 +110,17 @@ describe('POST /api/users/login', () => {
     expect(res.status).toBe(200);
     expect(res.body.first_name).toBe('Jane');
     expect(res.body.last_name).toBe('Doe');
+    expect(res.body).not.toHaveProperty('password');
+  });
+
+  it('logs in without sending a password', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [makeProfile()] });
+
+    const res = await request(app)
+      .post('/api/users/login')
+      .send({ firstName: 'Jane', lastName: 'Doe' });
+
+    expect(res.status).toBe(200);
   });
 
   it('returns 404 when profile not found', async () => {
@@ -125,11 +152,11 @@ describe('POST /api/users/login', () => {
 });
 
 describe('GET /api/users/all', () => {
-  it('returns list of all profiles with id and names only', async () => {
+  it('returns list of all profiles without password fields', async () => {
     mockPool.query.mockResolvedValueOnce({
       rows: [
-        { id: UUID, first_name: 'Jane', last_name: 'Doe', role: 'guest', has_password: true },
-        { id: '22222222-2222-2222-2222-222222222222', first_name: 'John', last_name: 'Smith', role: 'admin', has_password: false },
+        { id: UUID, first_name: 'Jane', last_name: 'Doe', role: 'guest' },
+        { id: '22222222-2222-2222-2222-222222222222', first_name: 'John', last_name: 'Smith', role: 'admin' },
       ],
     });
 
@@ -139,7 +166,8 @@ describe('GET /api/users/all', () => {
     expect(res.body).toHaveLength(2);
     expect(res.body[0].first_name).toBe('Jane');
     expect(res.body[1].first_name).toBe('John');
-    expect(res.body[0]).not.toHaveProperty('created_at');
+    expect(res.body[0]).not.toHaveProperty('password');
+    expect(res.body[0]).not.toHaveProperty('has_password');
   });
 
   it('returns empty array when no profiles exist', async () => {
@@ -169,5 +197,31 @@ describe('GET /api/users/count', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(0);
+  });
+});
+
+describe('Removed password routes', () => {
+  it('POST /api/users/set-password returns 404', async () => {
+    const res = await request(app)
+      .post('/api/users/set-password')
+      .send({ userId: UUID, password: 'test' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('POST /api/users/change-user-password returns 404', async () => {
+    const res = await request(app)
+      .post('/api/users/change-user-password')
+      .send({ userId: UUID, currentPassword: 'old', newPassword: 'new1' });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('POST /api/users/:id/admin-reset-password returns 404', async () => {
+    const res = await request(app)
+      .post(`/api/users/${UUID}/admin-reset-password`)
+      .send({ adminPassword: 'iloveboba', newPassword: 'new1' });
+
+    expect(res.status).toBe(404);
   });
 });

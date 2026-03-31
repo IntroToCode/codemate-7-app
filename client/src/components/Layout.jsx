@@ -15,6 +15,7 @@ export default function Layout({ children, spinRefresh }) {
           <NavLink to="/restaurants" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>🗂️ Restaurants</NavLink>
           <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>⚙️ Admin</NavLink>
           <NavLink to="/log" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>📜 Log</NavLink>
+          <NavLink to="/activity" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>📋 Activity</NavLink>
         </nav>
         <div className="header-user">
           <ProfileSwitcher />

@@ -7,6 +7,7 @@ const mockPool = {
 
 jest.mock('../db/pool', () => mockPool);
 jest.mock('../db/migrate', () => jest.fn().mockResolvedValue());
+jest.mock('../lib/logActivity', () => jest.fn().mockResolvedValue(undefined));
 
 jest.mock('../lib/places', () => ({
   validateZipCode: jest.fn((zip) => /^\d{5}$/.test((zip || '').trim())),

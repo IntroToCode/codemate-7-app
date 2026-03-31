@@ -7,6 +7,7 @@ const mockPool = {
 
 jest.mock('../db/pool', () => mockPool);
 jest.mock('../db/migrate', () => jest.fn().mockResolvedValue());
+jest.mock('../lib/logActivity', () => jest.fn().mockResolvedValue(undefined));
 
 const app = require('../server');
 
@@ -82,43 +83,89 @@ describe('POST /api/restaurants', () => {
 });
 
 describe('PUT /api/restaurants/:id', () => {
-  test('updates a restaurant', async () => {
+  test('updates a restaurant as creator', async () => {
     const updated = makeRestaurant({ name: 'Updated Name' });
-    mockPool.query.mockResolvedValueOnce({ rows: [updated] });
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ created_by: 'Alice Smith' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] })
+      .mockResolvedValueOnce({ rows: [updated] });
     const res = await request(app)
       .put(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2)
       .send({ name: 'Updated Name' });
     expect(res.status).toBe(200);
     expect(res.body.name).toBe('Updated Name');
   });
 
+  test('returns 401 if no user id', async () => {
+    const res = await request(app).put(`/api/restaurants/${UUID}`).send({ name: 'X' });
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 403 if not creator', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ created_by: 'Bob Jones' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] });
+    const res = await request(app)
+      .put(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2)
+      .send({ name: 'X' });
+    expect(res.status).toBe(403);
+  });
+
   test('returns 404 if restaurant not found', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app).put(`/api/restaurants/${UUID}`).send({ name: 'X' });
+    const res = await request(app)
+      .put(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2)
+      .send({ name: 'X' });
     expect(res.status).toBe(404);
   });
 });
 
 describe('PATCH /api/restaurants/:id/toggle', () => {
-  test('toggles active status', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [makeRestaurant({ active: false })] });
-    const res = await request(app).patch(`/api/restaurants/${UUID}/toggle`);
+  test('toggles active status as creator', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ created_by: 'Alice Smith' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] })
+      .mockResolvedValueOnce({ rows: [makeRestaurant({ active: false })] });
+    const res = await request(app)
+      .patch(`/api/restaurants/${UUID}/toggle`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(200);
     expect(res.body.active).toBe(false);
   });
 
+  test('returns 401 if no user id provided', async () => {
+    const res = await request(app).patch(`/api/restaurants/${UUID}/toggle`);
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 403 if not creator', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ created_by: 'Bob Jones' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] });
+    const res = await request(app)
+      .patch(`/api/restaurants/${UUID}/toggle`)
+      .set('X-User-Id', UUID2);
+    expect(res.status).toBe(403);
+  });
+
   test('returns 404 if not found', async () => {
     mockPool.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app).patch(`/api/restaurants/${UUID}/toggle`);
+    const res = await request(app)
+      .patch(`/api/restaurants/${UUID}/toggle`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(404);
   });
 });
 
 describe('DELETE /api/restaurants/:id', () => {
-  test('deletes a restaurant', async () => {
+  test('deletes a restaurant as creator', async () => {
     mockPool.query
-      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
-      .mockResolvedValueOnce({ rows: [{ id: UUID }] });
+      .mockResolvedValueOnce({ rows: [{ id: UUID, created_by: 'Alice Smith' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .delete(`/api/restaurants/${UUID}`)
       .set('X-User-Id', UUID2);
@@ -126,10 +173,23 @@ describe('DELETE /api/restaurants/:id', () => {
     expect(res.body.deleted).toBe(UUID);
   });
 
-  test('returns 404 if not found', async () => {
+  test('returns 401 if no user id', async () => {
+    const res = await request(app).delete(`/api/restaurants/${UUID}`);
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 403 if not creator', async () => {
     mockPool.query
-      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [{ id: UUID, created_by: 'Bob Jones' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] });
+    const res = await request(app)
+      .delete(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2);
+    expect(res.status).toBe(403);
+  });
+
+  test('returns 404 if not found', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(app)
       .delete(`/api/restaurants/${UUID}`)
       .set('X-User-Id', UUID2);

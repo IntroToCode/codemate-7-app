@@ -1,7 +1,7 @@
 # Lunch Roulette
 
 ## Project Overview
-A full-stack team lunch-picker app. Teams spin a wheel to randomly select a restaurant from a curated list. Features include spin history, vetoing results, ratings, tags, an admin dashboard, and a public spin log. No authentication — users enter a name on first visit (stored in localStorage).
+A full-stack team lunch-picker app. Teams spin a wheel to randomly select a restaurant from a curated list. Features include spin history, vetoing results, ratings, tags, an admin dashboard, a public spin log, and an activity feed tracking all user actions. No passwords — identity is purely name-based (stored in localStorage and in `user_profiles`).
 
 ## Architecture
 - **Frontend**: React 18 + React Router (Vite build), runs on port 5000
@@ -30,6 +30,7 @@ client/
       RestaurantList.jsx - Add/edit/delete restaurants, tags, ratings
       AdminDashboard.jsx - Table-based availability toggler
       SpinLog.jsx        - Full spin history log
+      ActivityFeed.jsx   - Team activity timeline (filterable by action type + user)
   vite.config.js         - Vite config (proxies /api to backend port 3001)
 
 server/
@@ -44,11 +45,14 @@ server/
     places.js            - Google Places API integration (geocoding + nearby search)
     duplicates.js        - Duplicate detection helper (name+address or place_id match)
     ratingAvg.js         - Pure average rating calculation
+    logActivity.js       - Shared helper: writes a row to activity_log (fire-and-forget, errors silenced)
   routes/
-    restaurants.js       - CRUD + autofill + toggle routes
-    spins.js             - Spin creation + veto + history routes
-    tags.js              - Tag add/delete routes
-    ratings.js           - Rating upsert route
+    restaurants.js       - CRUD + autofill + toggle routes (logs: restaurant_added/edited/deleted/activated/deactivated)
+    spins.js             - Spin creation + veto + history routes (logs: spin_created, spin_vetoed)
+    tags.js              - Tag add/delete routes (logs: tag_added, tag_removed when added_by/removed_by provided)
+    ratings.js           - Rating upsert route (logs: rating_cast)
+    users.js             - User profile routes (logs: user_registered)
+    activity.js          - GET /api/activity — paginated activity log with optional user_name filter
   __tests__/
     health.test.js       - Health endpoint tests
     spinAlgorithm.test.js - Unit tests for spin selection logic
@@ -75,8 +79,9 @@ start.sh                 - Startup: builds React, starts Express, watches for ch
 - **spins**: id (UUID), restaurant_id (FK), spun_by, is_vetoed, created_at
 - **tags**: id (UUID), restaurant_id (FK), label, created_at (unique per restaurant+label)
 - **ratings**: id (UUID), restaurant_id (FK), rated_by, score (1-5), created_at (unique per restaurant+user)
-- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default guest), password (nullable), spin_counter_reset_at (nullable timestamp), created_at (unique per first+last name pair)
-- **admin_settings**: key (VARCHAR PK), value — stores admin_password (default "iloveboba"), guest_spin_limit (default "2"), admin_spin_limit (default "-1" for unlimited)
+- **user_profiles**: id (UUID), first_name, last_name, role (admin/guest, default admin), spin_counter_reset_at (nullable timestamp), created_at (unique per first+last name pair)
+- **admin_settings**: key (VARCHAR PK), value — stores guest_spin_limit (default "2"), admin_spin_limit (default "-1" for unlimited)
+- **activity_log**: id (UUID), user_name, action (e.g. restaurant_added, spin_created), entity_type, entity_id (nullable UUID), details (JSONB), created_at
 
 ## API Routes
 | Method | Path | Description |

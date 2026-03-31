@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 const { selectRestaurant } = require('../lib/spinAlgorithm');
+const logActivity = require('../lib/logActivity');
 
 const RECENT_EXCLUSION_DAYS = 7;
 
@@ -178,6 +179,14 @@ router.post('/', async (req, res) => {
       [selected.id, spun_by]
     );
 
+    await logActivity({
+      userName: spun_by,
+      action: 'spin_created',
+      entityType: 'spin',
+      entityId: spinResult.rows[0].id,
+      details: { restaurant_name: selected.name },
+    });
+
     res.status(201).json({ spin: spinResult.rows[0], restaurant: selected });
   } catch (err) {
     console.error(err);
@@ -192,7 +201,7 @@ router.post('/:id/veto', async (req, res) => {
 
   try {
     const vetoResult = await pool.query(
-      `UPDATE spins SET is_vetoed = TRUE WHERE id = $1 AND is_vetoed = FALSE RETURNING *`,
+      `UPDATE spins SET is_vetoed = TRUE WHERE id = $1 AND is_vetoed = FALSE RETURNING *, restaurant_id`,
       [id]
     );
     if (vetoResult.rows.length === 0) return res.status(404).json({ error: 'Spin not found or already vetoed' });
@@ -223,6 +232,14 @@ router.post('/:id/veto', async (req, res) => {
       `INSERT INTO spins (restaurant_id, spun_by) VALUES ($1, $2) RETURNING *`,
       [selected.id, spun_by]
     );
+
+    await logActivity({
+      userName: spun_by,
+      action: 'spin_vetoed',
+      entityType: 'spin',
+      entityId: id,
+      details: { vetoed_restaurant_id: vetoedRestaurantId, new_restaurant: selected.name },
+    });
 
     res.status(201).json({ spin: newSpinResult.rows[0], restaurant: selected });
   } catch (err) {

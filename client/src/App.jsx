@@ -8,6 +8,7 @@ import SpinPage from './pages/SpinPage';
 import RestaurantList from './pages/RestaurantList';
 import AdminDashboard from './pages/AdminDashboard';
 import SpinLog from './pages/SpinLog';
+import ActivityFeed from './pages/ActivityFeed';
 import './index.css';
 
 function AppRoutes() {
@@ -25,6 +26,7 @@ function AppRoutes() {
             <Route path="/restaurants" element={<RestaurantList />} />
             <Route path="/dashboard" element={<AdminDashboard />} />
             <Route path="/log" element={<SpinLog />} />
+            <Route path="/activity" element={<ActivityFeed />} />
           </Routes>
         </Layout>
       </BrowserRouter>
