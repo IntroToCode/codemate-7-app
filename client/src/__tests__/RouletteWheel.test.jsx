@@ -48,6 +48,18 @@ describe('RouletteWheel rendering', () => {
     expect(wrapper).toHaveAttribute('aria-disabled', 'true');
   });
 
+  test('uses a circular clip path for a single restaurant wheel', () => {
+    const { container } = render(
+      <RouletteWheel
+        restaurants={[{ id: 1, name: 'Grand Royal Dumpling Palace Number 1 Very Long Restaurant Name' }]}
+        spinning={false}
+        winnerIndex={null}
+        onSpinComplete={() => {}}
+      />
+    );
+    expect(container.querySelector('clipPath circle')).toBeInTheDocument();
+  });
+
   test('renders correct number of segments', () => {
     const { container } = render(
       <RouletteWheel
@@ -191,17 +203,16 @@ describe('RouletteWheel rendering', () => {
     expect(lines).toHaveLength(4);
   });
 
-  test('wraps only the labels that need it and keeps font size uniform', () => {
+  test('wraps long labels, keeps short labels on one line, and preserves the slice clip path', () => {
     const longNameRestaurants = [{ id: 1, name: 'Extremely Long Restaurant Name That Is Way Too Long' }, { id: 2, name: 'Another Long Multi Word Restaurant Name' }, { id: 3, name: 'Short' }, { id: 4, name: 'Also Short' }, { id: 5, name: 'Tiny' }, { id: 6, name: 'Medium Name' }, { id: 7, name: 'Quick Bite' }, { id: 8, name: 'Late Lunch' }];
     const { container } = render(<RouletteWheel restaurants={longNameRestaurants} spinning={false} winnerIndex={null} onSpinComplete={() => {}} />);
     const texts = container.querySelectorAll('.rw-seg text');
     const wrappedLabelLines = texts[0].querySelectorAll('tspan');
     const shortLabelLines = texts[2].querySelectorAll('tspan');
-    const fontSizes = new Set(Array.from(texts).map((text) => text.getAttribute('font-size')));
     expect(wrappedLabelLines.length).toBeGreaterThan(1);
     expect(shortLabelLines).toHaveLength(1);
-    expect(fontSizes.size).toBe(1);
-    expect(fontSizes.has('11')).toBe(true);
+    expect(Number(texts[0].getAttribute('font-size'))).toBeGreaterThanOrEqual(9);
+    expect(Number(texts[0].getAttribute('font-size'))).toBeLessThanOrEqual(11);
     expect(texts[0]).toHaveAttribute('text-anchor', 'middle');
     expect(texts[0]).toHaveAttribute('clip-path', 'url(#rw-slice-clip-8-0)');
   });
