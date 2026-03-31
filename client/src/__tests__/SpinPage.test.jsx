@@ -236,4 +236,41 @@ describe('SpinPage recent exclusion UI', () => {
     expect(body.skip_ids).not.toEqual(expect.arrayContaining(['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7', 'i8']));
   });
 
+  test('shows the limit-reached error and avoids posting a spin when the live remaining check returns zero', async () => {
+    restaurants = [
+      { id: 'a', name: 'Alpha Cafe', active: true },
+      { id: 'b', name: 'Bravo Bistro', active: true },
+      { id: 'c', name: 'Charlie Deli', active: true },
+    ];
+    const remainingResponses = [
+      { remaining: 1, limit: 2, used: 1, unlimited: false, resetTime: null },
+      { remaining: 0, limit: 2, used: 2, unlimited: false, resetTime: new Date().toISOString() },
+    ];
+
+    global.fetch = jest.fn((url, options) => {
+      if (url === '/api/restaurants') return okJson(restaurants);
+      if (String(url).startsWith('/api/spins/recent-ids')) return okJson({ restaurant_ids: [] });
+      if (String(url).startsWith('/api/spins/remaining')) return okJson(remainingResponses.shift());
+      if (url === '/api/spins' && options?.method === 'POST') {
+        throw new Error('Spin endpoint should not be called when the limit is reached');
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderSpinPage();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /spin the wheel/i })).toBeInTheDocument());
+    await waitFor(() => {
+      expect(
+        global.fetch.mock.calls.filter(([url]) => String(url).startsWith('/api/spins/remaining')).length
+      ).toBe(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: /spin the wheel/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/you have reached your spin limit/i)).toBeInTheDocument();
+    });
+    expect(global.fetch).not.toHaveBeenCalledWith('/api/spins', expect.any(Object));
+  });
+
 });
