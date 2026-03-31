@@ -103,17 +103,8 @@ router.get('/spin-limits', async (req, res) => {
 });
 
 router.put('/spin-limits', async (req, res) => {
-  const { adminPassword, guest_spin_limit, admin_spin_limit } = req.body;
-  if (!adminPassword) {
-    return res.status(400).json({ error: 'Admin password is required.' });
-  }
+  const { guest_spin_limit, admin_spin_limit } = req.body;
   try {
-    const pwCheck = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
-      return res.status(401).json({ error: 'Unauthorized.' });
-    }
     if (guest_spin_limit !== undefined) {
       const val = parseInt(guest_spin_limit, 10);
       if (isNaN(val) || (val < 1 && val !== -1)) {
@@ -142,17 +133,7 @@ router.put('/spin-limits', async (req, res) => {
 });
 
 router.post('/reset-all-spins', async (req, res) => {
-  const { adminPassword } = req.body;
-  if (!adminPassword) {
-    return res.status(400).json({ error: 'Admin password is required.' });
-  }
   try {
-    const pwCheck = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
-      return res.status(401).json({ error: 'Unauthorized.' });
-    }
     await pool.query('UPDATE user_profiles SET spin_counter_reset_at = NOW()');
     res.json({ success: true });
   } catch (err) {
@@ -222,70 +203,13 @@ router.get('/:id/role', async (req, res) => {
   }
 });
 
-router.post('/admin-login', async (req, res) => {
-  const { password } = req.body;
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required.' });
-  }
-  try {
-    const { rows } = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (rows.length === 0) {
-      return res.status(500).json({ error: 'Admin password not configured.' });
-    }
-    if (password !== rows[0].value) {
-      return res.status(401).json({ error: 'Incorrect password.' });
-    }
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Admin login error:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/admin-change-password', async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current and new passwords are required.' });
-  }
-  if (newPassword.length < 4) {
-    return res.status(400).json({ error: 'New password must be at least 4 characters.' });
-  }
-  try {
-    const { rows } = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (rows.length === 0 || currentPassword !== rows[0].value) {
-      return res.status(401).json({ error: 'Current password is incorrect.' });
-    }
-    await pool.query(
-      "UPDATE admin_settings SET value = $1 WHERE key = 'admin_password'",
-      [newPassword]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Change password error:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 router.patch('/:id/role', async (req, res) => {
   const { id } = req.params;
-  const { role, adminPassword } = req.body;
+  const { role } = req.body;
   if (!role || !['admin', 'guest'].includes(role)) {
     return res.status(400).json({ error: 'Role must be "admin" or "guest".' });
   }
-  if (!adminPassword) {
-    return res.status(400).json({ error: 'Admin password is required.' });
-  }
   try {
-    const pwCheck = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
-      return res.status(401).json({ error: 'Unauthorized.' });
-    }
     const { rows } = await pool.query(
       'UPDATE user_profiles SET role = $1 WHERE id = $2 RETURNING id, first_name, last_name, role',
       [role, id]
@@ -300,17 +224,7 @@ router.patch('/:id/role', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
-  const { adminPassword } = req.body;
-  if (!adminPassword) {
-    return res.status(400).json({ error: 'Admin password is required.' });
-  }
   try {
-    const pwCheck = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
-      return res.status(401).json({ error: 'Unauthorized.' });
-    }
     const { rows } = await pool.query(
       'DELETE FROM user_profiles WHERE id = $1 RETURNING id, first_name, last_name',
       [id]
@@ -325,17 +239,7 @@ router.delete('/:id', async (req, res) => {
 
 router.post('/:id/reset-spins', async (req, res) => {
   const { id } = req.params;
-  const { adminPassword } = req.body;
-  if (!adminPassword) {
-    return res.status(400).json({ error: 'Admin password is required.' });
-  }
   try {
-    const pwCheck = await pool.query(
-      "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-    );
-    if (pwCheck.rows.length === 0 || adminPassword !== pwCheck.rows[0].value) {
-      return res.status(401).json({ error: 'Unauthorized.' });
-    }
     const { rows } = await pool.query(
       'UPDATE user_profiles SET spin_counter_reset_at = NOW() WHERE id = $1 RETURNING id, first_name, last_name',
       [id]

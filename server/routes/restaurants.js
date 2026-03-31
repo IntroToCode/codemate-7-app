@@ -118,14 +118,6 @@ async function resolveUserName(userId) {
   return `${rows[0].first_name} ${rows[0].last_name}`;
 }
 
-async function isAdminPasswordValid(adminPassword) {
-  if (!adminPassword) return false;
-  const { rows } = await pool.query(
-    "SELECT value FROM admin_settings WHERE key = 'admin_password'"
-  );
-  return rows.length > 0 && adminPassword === rows[0].value;
-}
-
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, cuisine, price_range, address } = req.body;
@@ -169,31 +161,21 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/toggle', async (req, res) => {
   const { id } = req.params;
   const userId = req.headers['x-user-id'];
-  const adminPassword = req.body?.adminPassword;
 
-  if (!userId && !adminPassword) {
-    return res.status(401).json({ error: 'Authorization required.' });
+  if (!userId) {
+    return res.status(401).json({ error: 'User ID is required.' });
   }
 
   try {
-    let authorized = false;
+    const restaurantResult = await pool.query(
+      'SELECT created_by FROM restaurants WHERE id = $1',
+      [id]
+    );
+    if (restaurantResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
-    if (adminPassword) {
-      authorized = await isAdminPasswordValid(adminPassword);
-    }
-
-    if (!authorized && userId) {
-      const restaurantResult = await pool.query(
-        'SELECT created_by FROM restaurants WHERE id = $1',
-        [id]
-      );
-      const userName = await resolveUserName(userId);
-      if (restaurantResult.rows.length > 0 && userName) {
-        authorized = userName === restaurantResult.rows[0].created_by;
-      }
-    }
-
-    if (!authorized) {
+    const userName = await resolveUserName(userId);
+    if (!userName) return res.status(401).json({ error: 'User not found.' });
+    if (userName !== restaurantResult.rows[0].created_by) {
       return res.status(403).json({ error: 'Only the creator can toggle this restaurant.' });
     }
 

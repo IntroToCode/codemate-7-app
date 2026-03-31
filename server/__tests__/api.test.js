@@ -121,17 +121,6 @@ describe('PUT /api/restaurants/:id', () => {
 });
 
 describe('PATCH /api/restaurants/:id/toggle', () => {
-  test('toggles active status with admin password', async () => {
-    mockPool.query
-      .mockResolvedValueOnce({ rows: [{ value: 'testpw' }] })
-      .mockResolvedValueOnce({ rows: [makeRestaurant({ active: false })] });
-    const res = await request(app)
-      .patch(`/api/restaurants/${UUID}/toggle`)
-      .send({ adminPassword: 'testpw' });
-    expect(res.status).toBe(200);
-    expect(res.body.active).toBe(false);
-  });
-
   test('toggles active status as creator', async () => {
     mockPool.query
       .mockResolvedValueOnce({ rows: [{ created_by: 'Alice Smith' }] })
@@ -144,18 +133,26 @@ describe('PATCH /api/restaurants/:id/toggle', () => {
     expect(res.body.active).toBe(false);
   });
 
-  test('returns 401 if no auth provided', async () => {
+  test('returns 401 if no user id provided', async () => {
     const res = await request(app).patch(`/api/restaurants/${UUID}/toggle`);
     expect(res.status).toBe(401);
   });
 
-  test('returns 404 if not found', async () => {
+  test('returns 403 if not creator', async () => {
     mockPool.query
-      .mockResolvedValueOnce({ rows: [{ value: 'testpw' }] })
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [{ created_by: 'Bob Jones' }] })
+      .mockResolvedValueOnce({ rows: [{ first_name: 'Alice', last_name: 'Smith' }] });
     const res = await request(app)
       .patch(`/api/restaurants/${UUID}/toggle`)
-      .send({ adminPassword: 'testpw' });
+      .set('X-User-Id', UUID2);
+    expect(res.status).toBe(403);
+  });
+
+  test('returns 404 if not found', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .patch(`/api/restaurants/${UUID}/toggle`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(404);
   });
 });

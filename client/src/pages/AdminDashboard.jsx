@@ -4,18 +4,11 @@ import StarRating from '../components/StarRating';
 import { priceLabel } from '../components/rouletteUtils.jsx';
 
 export default function AdminDashboard() {
-  const { userName, userId, userRole, updateRole, logout } = useUser();
+  const { userName, userId, updateRole, logout } = useUser();
   const [restaurants, setRestaurants] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState('restaurants');
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [currentPw, setCurrentPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [pwMessage, setPwMessage] = useState('');
 
   const [spinLimits, setSpinLimits] = useState({ guest_spin_limit: 2, admin_spin_limit: -1 });
   const [guestLimitInput, setGuestLimitInput] = useState('2');
@@ -72,35 +65,12 @@ export default function AdminDashboard() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    if (isAdminLoggedIn) loadAll();
-  }, [isAdminLoggedIn]);
-
-  async function handleAdminLogin(e) {
-    e.preventDefault();
-    setLoginError('');
-    try {
-      const res = await fetch('/api/users/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: adminPassword }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setLoginError(err.error || 'Login failed.');
-        return;
-      }
-      setIsAdminLoggedIn(true);
-    } catch (err) {
-      setLoginError('Network error. Please try again.');
-    }
-  }
+  useEffect(() => { loadAll(); }, []);
 
   async function handleToggle(id) {
     const res = await fetch(`/api/restaurants/${id}/toggle`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminPassword }),
+      headers: { 'X-User-Id': userId },
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -114,7 +84,7 @@ export default function AdminDashboard() {
     const res = await fetch(`/api/users/${targetUserId}/role`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: newRole, adminPassword }),
+      body: JSON.stringify({ role: newRole }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -136,8 +106,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`/api/users/${targetUserId}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -152,29 +120,6 @@ export default function AdminDashboard() {
       loadSpinUsage();
     } catch (err) {
       alert('Failed to delete user. Please try again.');
-    }
-  }
-
-  async function handleChangePassword(e) {
-    e.preventDefault();
-    setPwMessage('');
-    try {
-      const res = await fetch('/api/users/admin-change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setPwMessage(data.error || 'Failed to change password.');
-        return;
-      }
-      setAdminPassword(newPw);
-      setCurrentPw('');
-      setNewPw('');
-      setPwMessage('Password changed successfully!');
-    } catch (err) {
-      setPwMessage('Network error. Please try again.');
     }
   }
 
@@ -198,7 +143,6 @@ export default function AdminDashboard() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          adminPassword,
           guest_spin_limit: guestVal,
           admin_spin_limit: adminVal,
         }),
@@ -225,8 +169,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`/api/users/${targetUserId}/reset-spins`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -245,8 +187,6 @@ export default function AdminDashboard() {
     try {
       const res = await fetch('/api/users/reset-all-spins', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminPassword }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -257,33 +197,6 @@ export default function AdminDashboard() {
     } catch (err) {
       alert('Failed to reset spins. Please try again.');
     }
-  }
-
-  if (!isAdminLoggedIn) {
-    return (
-      <div className="admin-page">
-        <div className="page-header">
-          <h2>⚙️ Admin Dashboard</h2>
-          <p className="page-sub">Enter the admin password to access the dashboard.</p>
-        </div>
-        <form className="admin-login-form card" onSubmit={handleAdminLogin}>
-          <h3>🔒 Admin Login</h3>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="Admin password"
-            value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
-            required
-            autoFocus
-          />
-          {loginError && <p className="error-text">{loginError}</p>}
-          <div className="card-actions">
-            <button type="submit" className="btn btn-primary">Log In</button>
-          </div>
-        </form>
-      </div>
-    );
   }
 
   if (loading) return <div className="loading">Loading… 🍽️</div>;
@@ -311,57 +224,13 @@ export default function AdminDashboard() {
           >
             🎰 Spin Settings
           </button>
-          <button
-            className="btn btn-sm btn-ghost"
-            onClick={() => setShowChangePassword(!showChangePassword)}
-          >
-            🔑 Change Admin Password
-          </button>
-          <button
-            className="btn btn-sm btn-danger"
-            onClick={() => { setIsAdminLoggedIn(false); setAdminPassword(''); }}
-          >
-            🚪 Log Out
-          </button>
         </div>
       </div>
-
-      {showChangePassword && (
-        <form className="admin-login-form card" onSubmit={handleChangePassword} style={{ marginBottom: '1.5rem' }}>
-          <h3>🔑 Change Admin Password</h3>
-          <input
-            className="form-input"
-            type="password"
-            placeholder="Current password"
-            value={currentPw}
-            onChange={(e) => setCurrentPw(e.target.value)}
-            required
-          />
-          <input
-            className="form-input"
-            type="password"
-            placeholder="New password (min 4 characters)"
-            value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
-            required
-            minLength={4}
-          />
-          {pwMessage && (
-            <p className={pwMessage.includes('successfully') ? 'success-text' : 'error-text'}>
-              {pwMessage}
-            </p>
-          )}
-          <div className="card-actions">
-            <button type="submit" className="btn btn-primary">Update Password</button>
-            <button type="button" className="btn btn-ghost" onClick={() => { setShowChangePassword(false); setPwMessage(''); }}>Cancel</button>
-          </div>
-        </form>
-      )}
 
       {activeTab === 'restaurants' && (
         <>
           <p className="page-sub">
-            Manage restaurant availability. Toggle status for any restaurant.
+            Manage availability for your restaurants. Toggle status for restaurants you added.
           </p>
           <div className="admin-table-wrap">
             <table className="admin-table">
@@ -400,12 +269,14 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td>
-                        <button
-                          className={`btn btn-sm ${r.active ? 'btn-ghost' : 'btn-primary'}`}
-                          onClick={() => handleToggle(r.id)}
-                        >
-                          {r.active ? '🚫 Deactivate' : '✅ Activate'}
-                        </button>
+                        {isOwner && (
+                          <button
+                            className={`btn btn-sm ${r.active ? 'btn-ghost' : 'btn-primary'}`}
+                            onClick={() => handleToggle(r.id)}
+                          >
+                            {r.active ? '🚫 Deactivate' : '✅ Activate'}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
