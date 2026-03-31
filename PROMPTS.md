@@ -529,3 +529,139 @@ add roulette sound effect.
 **Prompt:** "updates all the prompts here to PROMPTS.md"
 
 **Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:20 PM
+
+**Prompt:** "stage and commit"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:25 PM
+
+**Prompt:** "push this commit and update PR"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:30 PM
+
+**Prompt:** "did you run playwright test?"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:31 PM
+
+**Prompt:** "yes"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:35 PM
+
+**Prompt:** "can you pull up the app locally for me from this branch"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:45 PM
+
+**Prompt:** "so the result still doesnt freeze on winning choice when the roll ends"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:50 PM
+
+**Prompt:** "can i check fi the code is working now?"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:55 PM
+
+**Prompt:** "so it does work when the skip last 7 day toggle is off, but when i select it it doesnt work"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:00 PM
+
+**Prompt:** "do it"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:05 PM
+
+**Prompt:** "restart the lcoalhost server so i can retest"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:10 PM
+
+**Prompt:** "why is it when it's single restaurant, i just see elipses..."
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:12 PM
+
+**Prompt:** "yes"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:20 PM
+
+**Prompt:** "stage and push the change"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:30 PM
+
+**Prompt:** "i got this when I was trying to publish on replit [Included npm output ending with: Missing script: \"build\"]"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:31 PM
+
+**Prompt:** "yes"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:35 PM
+
+**Prompt:** "what does that actually do"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~3:40 PM
+
+**Prompt:** "update prompt.md with all the latest prompts in this session that werw not already added. Stage and commmit"
+
+**Author:** Alan
