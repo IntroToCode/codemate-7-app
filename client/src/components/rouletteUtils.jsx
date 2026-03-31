@@ -192,6 +192,23 @@ function computeStopAngles(ballAngleCurrent, wheelAngleCurrent, winnerIndex, seg
   return { ballTravel, wheelTravel };
 }
 
+/**
+ * Filter restaurants by cuisine and/or price range.
+ *
+ * @param {Array}  restaurants  - Full list of restaurant objects
+ * @param {string} cuisine      - Cuisine string to match (case-insensitive), or '' for all
+ * @param {number|null} price   - Price range integer (1-3) to match, or null for all
+ * @returns {Array} Filtered list
+ */
+function filterRestaurants(restaurants, cuisine, price) {
+  return restaurants.filter((r) => {
+    const cuisineMatch =
+      !cuisine || (r.cuisine && r.cuisine.toLowerCase() === cuisine.toLowerCase());
+    const priceMatch = price == null || r.price_range === price;
+    return cuisineMatch && priceMatch;
+  });
+}
+
 export {
   WHEEL_R,
   BALL_ORBIT_R,
@@ -207,4 +224,5 @@ export {
   shuffleArray,
   priceLabel,
   computeStopAngles,
+  filterRestaurants,
 };

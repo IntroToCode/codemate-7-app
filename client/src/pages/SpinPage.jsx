@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext';
 import { useTempDisable } from '../context/TempDisableContext';
 import RouletteWheel from '../components/RouletteWheel';
 
-import { shuffleArray, priceLabel } from '../components/rouletteUtils.jsx';
+import { shuffleArray, priceLabel, filterRestaurants } from '../components/rouletteUtils.jsx';
 
 const FOOD_EMOJIS = ['🍕', '🌮', '🍔', '🍣', '🥗', '🍜', '🥘', '🍛', '🌯', '🍱'];
 const RECENT_EXCLUSION_DAYS = 7;
@@ -44,8 +44,12 @@ export default function SpinPage({ onSpin }) {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [vetoing, setVetoing] = useState(false);
   const spinInProgress = useRef(false);
+  const [cuisineFilter, setCuisineFilter] = useState('');
+  const [priceFilter, setPriceFilter] = useState(null);
 
   const [spinInfo, setSpinInfo] = useState(null);
+
+  const wheelReady = !loadingRest && !loadingRecent;
 
   const fetchSpinInfo = useCallback(() => {
     if (!userName) return;
@@ -94,61 +98,30 @@ export default function SpinPage({ onSpin }) {
 
   useEffect(() => {
     fetchRestaurants();
-  }, [fetchRestaurants]);
-
-  useEffect(() => {
-    if (!excludeRecent) {
-      setLoadingRecent(false);
-      return;
-    }
     fetchRecentIds();
-  }, [excludeRecent, fetchRecentIds]);
-
-  useEffect(() => {
     fetchSpinInfo();
-  }, [fetchSpinInfo]);
+  }, [fetchRestaurants, fetchRecentIds, fetchSpinInfo]);
 
-  const availableRestaurants = useMemo(
-    () => allRestaurants.filter((r) => !tempDisabled.has(r.id)),
-    [allRestaurants, tempDisabled]
-  );
+  const cuisineOptions = [...new Set(
+    allRestaurants.map((r) => r.cuisine).filter(Boolean)
+  )].sort();
 
-  const recentExcludedIdSet = useMemo(
-    () => new Set(recentExcludedIds),
-    [recentExcludedIds]
-  );
-
-  const eligibleRestaurants = useMemo(() => {
-    if (!excludeRecent) return availableRestaurants;
-    return availableRestaurants.filter((r) => !recentExcludedIdSet.has(r.id));
-  }, [availableRestaurants, excludeRecent, recentExcludedIdSet]);
-
-  const wheelReady = !loadingRest && (!excludeRecent || !loadingRecent);
+  const activeOnWheel = useCallback(() => {
+    const afterFilters = filterRestaurants(allRestaurants, cuisineFilter, priceFilter);
+    return afterFilters.filter((r) => !tempDisabled.has(r.id));
+  }, [allRestaurants, tempDisabled, cuisineFilter, priceFilter]);
 
   useEffect(() => {
-    if (!wheelReady || spinInProgress.current) return;
-
-    if (eligibleRestaurants.length === 0) {
-      setWheelRestaurants([]);
-      return;
+    if (!spinning && !vetoing) {
+      const pool = buildWheelPool(activeOnWheel());
+      setWheelRestaurants(pool);
     }
+  }, [allRestaurants, cuisineFilter, priceFilter, tempDisabled]);
 
-    if (eligibleRestaurants.length === 1) {
-      setWheelRestaurants(eligibleRestaurants);
-      return;
-    }
-
-    setWheelRestaurants(buildWheelPool(eligibleRestaurants));
-  }, [wheelReady, eligibleRestaurants]);
-
-  const atLimit = spinInfo && !spinInfo.unlimited && spinInfo.remaining <= 0;
-  const allExcludedByRecent = wheelReady
-    && excludeRecent
-    && availableRestaurants.length > 0
-    && eligibleRestaurants.length === 0
-    && recentExcludedIds.length > 0;
-  const tooFew = wheelReady && eligibleRestaurants.length < 2 && !allExcludedByRecent;
-  const wheelDisabled = tooFew && wheelRestaurants.length > 0;
+  function clearFilters() {
+    setCuisineFilter('');
+    setPriceFilter(null);
+  }
 
   async function doSpin(isVeto = false, vetoSpinId = null) {
     if (spinInProgress.current) return;
@@ -184,7 +157,12 @@ export default function SpinPage({ onSpin }) {
       return;
     }
 
-    const available = eligibleRestaurants;
+    const available = activeOnWheel();
+    const allExcludedByRecent =
+      excludeRecent &&
+      !loadingRecent &&
+      available.filter((r) => !recentExcludedIds.includes(r.id)).length < 2 &&
+      available.length >= 2;
     if (available.length < 2) {
       setError(
         allExcludedByRecent
@@ -276,6 +254,18 @@ export default function SpinPage({ onSpin }) {
     doSpin(true, result.spin.id);
   }
 
+  const available = activeOnWheel();
+  const filtersActive = cuisineFilter !== '' || priceFilter !== null;
+  const noMatch = !loadingRest && filtersActive && available.length === 0;
+  const tooFew = !loadingRest && available.length < 2;
+  const allExcludedByRecent =
+    excludeRecent &&
+    !loadingRecent &&
+    available.filter((r) => !recentExcludedIds.includes(r.id)).length < 2 &&
+    available.length >= 2;
+  const atLimit = spinInfo ? !spinInfo.unlimited && spinInfo.remaining <= 0 : false;
+  const wheelDisabled = spinning || vetoing;
+
   return (
     <div className="spin-page">
       <div className="spin-hero">
@@ -294,26 +284,56 @@ export default function SpinPage({ onSpin }) {
         )}
 
         <div className="spin-controls">
-          {spinInfo && !spinInfo.unlimited && (
-            <div className="spin-limit-info">
-              {atLimit ? (
-                <span className="spin-limit-reached">
-                  🚫 Spin limit reached ({spinInfo.limit}/{spinInfo.limit})
-                  {spinInfo.resetTime && (
-                    <span className="reset-timer"> — resets in {formatTimeRemaining(spinInfo.resetTime)}</span>
-                  )}
-                </span>
-              ) : (
-                <span className="spin-limit-remaining">
-                  🎰 {spinInfo.remaining} of {spinInfo.limit} spins remaining
-                </span>
+          {!loadingRest && allRestaurants.length >= 2 && (
+            <div className="spin-filters">
+              <div className="spin-filter-row">
+                <label className="spin-filter-label" htmlFor="cuisine-select">Cuisine</label>
+                <select
+                  id="cuisine-select"
+                  className="spin-filter-select"
+                  value={cuisineFilter}
+                  onChange={(e) => setCuisineFilter(e.target.value)}
+                  disabled={spinning}
+                >
+                  <option value="">All cuisines</option>
+                  {cuisineOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="spin-filter-row">
+                <label className="spin-filter-label">Price</label>
+                <div className="spin-price-btns">
+                  {[null, 1, 2, 3].map((p) => (
+                    <button
+                      key={p ?? 'all'}
+                      className={`spin-price-btn${priceFilter === p ? ' active' : ''}`}
+                      onClick={() => setPriceFilter(p)}
+                      disabled={spinning}
+                      aria-pressed={priceFilter === p}
+                    >
+                      {p === null ? 'All' : priceLabel(p)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {filtersActive && (
+                <button
+                  className="spin-filter-clear"
+                  onClick={clearFilters}
+                  disabled={spinning}
+                >
+                  ✕ Clear filters
+                </button>
               )}
             </div>
           )}
 
-          {allExcludedByRecent ? (
-            <p className="roulette-min-notice">
-              ⚠️ {ALL_EXCLUDED_MESSAGE}
+          {noMatch ? (
+            <p className="spin-no-match">
+              😕 No restaurants match your filters!
             </p>
           ) : tooFew ? (
             <p className="roulette-min-notice">
@@ -323,7 +343,7 @@ export default function SpinPage({ onSpin }) {
             <button
               className="btn btn-spin"
               onClick={() => doSpin(false)}
-              disabled={spinning || vetoing || tooFew || atLimit || !wheelReady || allExcludedByRecent}
+              disabled={spinning || vetoing}
             >
               {spinning && !vetoing
                 ? '🎡 Spinning…'
