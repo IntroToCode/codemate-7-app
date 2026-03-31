@@ -12,6 +12,8 @@ const app = require('../server');
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPool.query.mockReset();
+  mockPool.connect.mockReset();
   mockPool.connect.mockImplementation((cb) => cb(null, { release: jest.fn() }, jest.fn()));
 });
 
@@ -114,15 +116,23 @@ describe('PATCH /api/restaurants/:id/toggle', () => {
 
 describe('DELETE /api/restaurants/:id', () => {
   test('deletes a restaurant', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [{ id: UUID }] });
-    const res = await request(app).delete(`/api/restaurants/${UUID}`);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
+      .mockResolvedValueOnce({ rows: [{ id: UUID }] });
+    const res = await request(app)
+      .delete(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(200);
     expect(res.body.deleted).toBe(UUID);
   });
 
   test('returns 404 if not found', async () => {
-    mockPool.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app).delete(`/api/restaurants/${UUID}`);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [{ role: 'admin' }] })
+      .mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .delete(`/api/restaurants/${UUID}`)
+      .set('X-User-Id', UUID2);
     expect(res.status).toBe(404);
   });
 });
@@ -162,6 +172,19 @@ describe('POST /api/spins', () => {
   test('returns 400 if spun_by is missing', async () => {
     const res = await request(app).post('/api/spins').send({});
     expect(res.status).toBe(400);
+  });
+
+  test('returns 429 when the user has reached the spin limit', async () => {
+    mockSpinPrechecks({ limit: '2', used: 2 });
+    mockPool.query.mockResolvedValueOnce({ rows: [{ created_at: new Date() }] });
+
+    const res = await request(app).post('/api/spins').send({ spun_by: 'Bob' });
+
+    expect(res.status).toBe(429);
+    expect(res.body.limit).toBe(2);
+    expect(res.body.used).toBe(2);
+    expect(typeof res.body.resetTime).toBe('string');
+    expect(res.body.retryAfterSeconds).toBeGreaterThanOrEqual(0);
   });
 
   test('returns 422 when no eligible restaurants', async () => {
@@ -215,6 +238,50 @@ describe('GET /api/spins/recent-ids', () => {
     const res = await request(app).get('/api/spins/recent-ids');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ restaurant_ids: [] });
+  });
+});
+
+describe('GET /api/spins/remaining', () => {
+  test('returns 400 when user_name is missing', async () => {
+    const res = await request(app).get('/api/spins/remaining');
+    expect(res.status).toBe(400);
+  });
+
+  test('returns 404 when the user does not exist', async () => {
+    mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/api/spins/remaining?user_name=Missing%20User');
+
+    expect(res.status).toBe(404);
+  });
+
+  test('returns unlimited info for users with unlimited spin limits', async () => {
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [makeProfile({ role: 'admin' })] })
+      .mockResolvedValueOnce({ rows: [{ value: '-1' }] });
+
+    const res = await request(app).get('/api/spins/remaining?user_name=Bob');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ remaining: -1, limit: -1, used: 0, unlimited: true });
+  });
+
+  test('returns remaining count and reset time when the limit has been reached', async () => {
+    const firstSpinAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    mockPool.query
+      .mockResolvedValueOnce({ rows: [makeProfile()] })
+      .mockResolvedValueOnce({ rows: [{ value: '2' }] })
+      .mockResolvedValueOnce({ rows: [{ count: 2 }] })
+      .mockResolvedValueOnce({ rows: [{ created_at: firstSpinAt }] });
+
+    const res = await request(app).get('/api/spins/remaining?user_name=Bob');
+
+    expect(res.status).toBe(200);
+    expect(res.body.remaining).toBe(0);
+    expect(res.body.limit).toBe(2);
+    expect(res.body.used).toBe(2);
+    expect(res.body.unlimited).toBe(false);
+    expect(res.body.resetTime).toBe(new Date(firstSpinAt.getTime() + 24 * 60 * 60 * 1000).toISOString());
   });
 });
 
