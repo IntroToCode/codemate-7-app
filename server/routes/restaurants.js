@@ -108,10 +108,46 @@ router.post('/', async (req, res) => {
   }
 });
 
+async function resolveUserName(userId) {
+  if (!userId) return null;
+  const { rows } = await pool.query(
+    'SELECT first_name, last_name FROM user_profiles WHERE id = $1',
+    [userId]
+  );
+  if (rows.length === 0) return null;
+  return `${rows[0].first_name} ${rows[0].last_name}`;
+}
+
+async function isAdminPasswordValid(adminPassword) {
+  if (!adminPassword) return false;
+  const { rows } = await pool.query(
+    "SELECT value FROM admin_settings WHERE key = 'admin_password'"
+  );
+  return rows.length > 0 && adminPassword === rows[0].value;
+}
+
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, cuisine, price_range, address } = req.body;
+  const userId = req.headers['x-user-id'];
+
+  if (!userId) {
+    return res.status(401).json({ error: 'User ID is required.' });
+  }
+
   try {
+    const restaurantResult = await pool.query(
+      'SELECT created_by FROM restaurants WHERE id = $1',
+      [id]
+    );
+    if (restaurantResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    const userName = await resolveUserName(userId);
+    if (!userName) return res.status(401).json({ error: 'User not found.' });
+    if (userName !== restaurantResult.rows[0].created_by) {
+      return res.status(403).json({ error: 'Only the creator can edit this restaurant.' });
+    }
+
     const result = await pool.query(
       `UPDATE restaurants
        SET name = COALESCE($1, name),
@@ -132,7 +168,35 @@ router.put('/:id', async (req, res) => {
 
 router.patch('/:id/toggle', async (req, res) => {
   const { id } = req.params;
+  const userId = req.headers['x-user-id'];
+  const adminPassword = req.body?.adminPassword;
+
+  if (!userId && !adminPassword) {
+    return res.status(401).json({ error: 'Authorization required.' });
+  }
+
   try {
+    let authorized = false;
+
+    if (adminPassword) {
+      authorized = await isAdminPasswordValid(adminPassword);
+    }
+
+    if (!authorized && userId) {
+      const restaurantResult = await pool.query(
+        'SELECT created_by FROM restaurants WHERE id = $1',
+        [id]
+      );
+      const userName = await resolveUserName(userId);
+      if (restaurantResult.rows.length > 0 && userName) {
+        authorized = userName === restaurantResult.rows[0].created_by;
+      }
+    }
+
+    if (!authorized) {
+      return res.status(403).json({ error: 'Only the creator can toggle this restaurant.' });
+    }
+
     const result = await pool.query(
       `UPDATE restaurants SET active = NOT active WHERE id = $1 RETURNING *`,
       [id]
@@ -148,22 +212,25 @@ router.patch('/:id/toggle', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   const userId = req.headers['x-user-id'];
+
   if (!userId) {
     return res.status(401).json({ error: 'User ID is required.' });
   }
+
   try {
-    const userCheck = await pool.query(
-      'SELECT role FROM user_profiles WHERE id = $1',
-      [userId]
-    );
-    if (userCheck.rows.length === 0 || userCheck.rows[0].role !== 'admin') {
-      return res.status(403).json({ error: 'Only admins can delete restaurants.' });
-    }
-    const result = await pool.query(
-      `DELETE FROM restaurants WHERE id = $1 RETURNING id`,
+    const restaurantResult = await pool.query(
+      'SELECT id, created_by FROM restaurants WHERE id = $1',
       [id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    if (restaurantResult.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    const userName = await resolveUserName(userId);
+    if (!userName) return res.status(401).json({ error: 'User not found.' });
+    if (userName !== restaurantResult.rows[0].created_by) {
+      return res.status(403).json({ error: 'Only the creator can delete this restaurant.' });
+    }
+
+    await pool.query('DELETE FROM restaurants WHERE id = $1', [id]);
     res.json({ deleted: id });
   } catch (err) {
     console.error(err);

@@ -80,7 +80,7 @@ export default function RestaurantList() {
   async function handleSaveEdit(id) {
     const res = await fetch(`/api/restaurants/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
       body: JSON.stringify(form),
     });
     if (!res.ok) {
@@ -95,12 +95,6 @@ export default function RestaurantList() {
   async function handleDelete(id) {
     if (!window.confirm('Delete this restaurant?')) return;
     try {
-      const roleRes = await fetch(`/api/users/${userId}/role`);
-      const roleData = await roleRes.json();
-      if (!roleRes.ok || roleData.role !== 'admin') {
-        alert('Only admins can delete restaurants.');
-        return;
-      }
       const res = await fetch(`/api/restaurants/${id}`, {
         method: 'DELETE',
         headers: { 'X-User-Id': userId },
@@ -117,7 +111,10 @@ export default function RestaurantList() {
   }
 
   async function handleToggle(id) {
-    const res = await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    const res = await fetch(`/api/restaurants/${id}/toggle`, {
+      method: 'PATCH',
+      headers: { 'X-User-Id': userId },
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(err.error || 'Failed to toggle restaurant');
@@ -306,10 +303,14 @@ export default function RestaurantList() {
                 </div>
 
                 <div className="card-actions">
-                  <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(r)}>✏️ Edit</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => handleToggle(r.id)}>
-                    {r.active ? '🚫 Deactivate' : '✅ Activate'}
-                  </button>
+                  {r.created_by === userName && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleEdit(r)}>✏️ Edit</button>
+                  )}
+                  {r.created_by === userName && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleToggle(r.id)}>
+                      {r.active ? '🚫 Deactivate' : '✅ Activate'}
+                    </button>
+                  )}
                   <button
                     className={`btn btn-sm ${tempDisabled.has(r.id) ? 'btn-primary' : 'btn-ghost'}`}
                     onClick={() => toggleTempDisable(r.id)}
@@ -317,7 +318,7 @@ export default function RestaurantList() {
                   >
                     {tempDisabled.has(r.id) ? '↩️ Re-enable' : '⏸️ Skip next spin'}
                   </button>
-                  {userRole === 'admin' && (
+                  {r.created_by === userName && (
                     <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>🗑️</button>
                   )}
                 </div>

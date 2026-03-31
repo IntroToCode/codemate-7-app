@@ -97,7 +97,11 @@ export default function AdminDashboard() {
   }
 
   async function handleToggle(id) {
-    const res = await fetch(`/api/restaurants/${id}/toggle`, { method: 'PATCH' });
+    const res = await fetch(`/api/restaurants/${id}/toggle`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminPassword }),
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       alert(err.error || 'Failed to toggle restaurant');
