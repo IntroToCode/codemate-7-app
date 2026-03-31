@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import RouletteWheel from '../components/RouletteWheel';
 
@@ -232,5 +232,56 @@ describe('RouletteWheel rendering', () => {
     expect(Number(texts[0].getAttribute('font-size'))).toBeLessThanOrEqual(11);
     expect(texts[0]).toHaveAttribute('text-anchor', 'middle');
     expect(texts[0]).toHaveAttribute('clip-path', 'url(#rw-slice-clip-8-0)');
+  });
+
+  test('preserves the parked wheel rotation after the winning stop completes', () => {
+    jest.useFakeTimers();
+    let frameTime = 0;
+    window.requestAnimationFrame = (cb) => setTimeout(() => cb((frameTime += 100)), 0);
+    window.cancelAnimationFrame = (id) => clearTimeout(id);
+
+    const onSpinComplete = jest.fn();
+    const { container, rerender } = render(
+      <RouletteWheel
+        restaurants={mockRestaurants}
+        spinning
+        winnerIndex={null}
+        onSpinComplete={onSpinComplete}
+      />
+    );
+
+    rerender(
+      <RouletteWheel
+        restaurants={mockRestaurants}
+        spinning
+        winnerIndex={1}
+        onSpinComplete={onSpinComplete}
+      />
+    );
+
+    act(() => {
+      for (let i = 0; i < 80; i += 1) {
+        jest.runOnlyPendingTimers();
+      }
+    });
+
+    const wheelGroup = container.querySelector('svg > g');
+    const parkedTransform = wheelGroup.getAttribute('transform');
+
+    expect(onSpinComplete).toHaveBeenCalled();
+    expect(parkedTransform).toBeTruthy();
+    expect(parkedTransform).not.toBe('rotate(0.00)');
+
+    rerender(
+      <RouletteWheel
+        restaurants={mockRestaurants}
+        spinning={false}
+        winnerIndex={1}
+        busy={false}
+        onSpinComplete={onSpinComplete}
+      />
+    );
+
+    expect(wheelGroup.getAttribute('transform')).toBe(parkedTransform);
   });
 });

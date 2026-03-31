@@ -187,6 +187,10 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     }
   }
 
+  useLayoutEffect(() => {
+    moveWheel();
+  }, [labelKey, spinning, winnerIndex, done]);
+
   const labelCandidates = useMemo(
     () => restaurants.map((restaurant) => getRestaurantLabelCandidates(restaurant.name, n)),
     [restaurants, n]

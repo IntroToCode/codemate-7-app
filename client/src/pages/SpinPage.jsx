@@ -67,8 +67,8 @@ export default function SpinPage({ onSpin }) {
       .catch(() => {});
   }, [userName]);
 
-  const fetchRecentIds = useCallback(() => {
-    setLoadingRecent(true);
+  const fetchRecentIds = useCallback((silent = false) => {
+    if (!silent) setLoadingRecent(true);
     return fetch(`/api/spins/recent-ids?days=${RECENT_EXCLUSION_DAYS}`)
       .then((r) => {
         if (!r.ok) throw new Error('Failed to fetch recent spin ids');
@@ -80,7 +80,7 @@ export default function SpinPage({ onSpin }) {
       .catch(() => {
         setRecentExcludedIds([]);
       })
-      .finally(() => setLoadingRecent(false));
+      .finally(() => { if (!silent) setLoadingRecent(false); });
   }, []);
 
   const fetchRestaurants = useCallback(() => {
@@ -271,7 +271,7 @@ export default function SpinPage({ onSpin }) {
     clearAll();
     spinInProgress.current = false;
     fetchSpinInfo();
-    fetchRecentIds();
+    fetchRecentIds(true);
     if (onSpin) onSpin();
   }
 
@@ -318,9 +318,9 @@ export default function SpinPage({ onSpin }) {
   return (
     <div className="spin-page">
       <div className="spin-hero">
-        {!wheelReady || wheelRestaurants.length === 0 ? (
+        {(!wheelReady && !hasParkedResult) || wheelRestaurants.length === 0 ? (
           <div className="roulette-loading">
-            {!wheelReady ? 'Loading wheel…' : ''}
+            {!wheelReady && !hasParkedResult ? 'Loading wheel…' : ''}
           </div>
         ) : (
           <RouletteWheel
