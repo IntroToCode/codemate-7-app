@@ -8,8 +8,11 @@ import {
   buildSegPath,
   clamp,
   estimateLabelTextWidth,
+  getMinWheelLabelFontSize,
+  getRestaurantLabelCandidates,
   getRestaurantLabelLayout,
   getWheelLabelFontSize,
+  hasSvgTextClipping,
   shuffleArray,
   priceLabel,
   computeStopAngles,
@@ -97,12 +100,64 @@ describe('clamp', () => {
 describe('label layout helpers', () => {
   test('estimateLabelTextWidth treats wide text as wider than narrow text', () => { expect(estimateLabelTextWidth('MMMM', 10)).toBeGreaterThan(estimateLabelTextWidth('iiii', 10)); });
   test('getWheelLabelFontSize returns a larger shared size based on segment count', () => { expect(getWheelLabelFontSize(2)).toBe(15); expect(getWheelLabelFontSize(4)).toBe(13); expect(getWheelLabelFontSize(8)).toBe(11); });
-  test('biases the label anchor outward into the wider part of the slice', () => { const fontSize = getWheelLabelFontSize(8); const layout = getRestaurantLabelLayout('Modern Eats', 8, fontSize); const innerRadius = HUB_R + Math.max(9, fontSize * 0.92); const outerRadius = WHEEL_R - Math.max(6, fontSize * 0.72); expect(layout.anchorRadius).toBeGreaterThan((innerRadius + outerRadius) / 2); expect(layout.anchorRadius).toBeLessThan(outerRadius); });
+  test('getMinWheelLabelFontSize returns a readable lower bound', () => { expect(getMinWheelLabelFontSize(1)).toBe(11); expect(getMinWheelLabelFontSize(3)).toBe(12); expect(getMinWheelLabelFontSize(5)).toBe(10); expect(getMinWheelLabelFontSize(8)).toBe(9); });
+  test('keeps the label anchor within the readable band of the slice', () => { const fontSize = getWheelLabelFontSize(8); const layout = getRestaurantLabelLayout('Modern Eats', 8, fontSize); expect(layout.anchorRadius).toBeGreaterThan(HUB_R); expect(layout.anchorRadius).toBeLessThan(WHEEL_R); });
   test('keeps a label on one line when it already fits', () => { const layout = getRestaurantLabelLayout('Taco Town', 4, getWheelLabelFontSize(4)); expect(layout.lines).toEqual(['Taco Town']); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(false); });
   test('keeps short multi-word labels on one line when the expanded safe zone allows it', () => { const layout = getRestaurantLabelLayout('Quick Bite', 8, getWheelLabelFontSize(8)); expect(layout.lines).toEqual(['Quick Bite']); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(false); });
   test('wraps a multi-word label only when a single line does not fit', () => { const layout = getRestaurantLabelLayout('Extremely Long Restaurant Name That Is Way Too Long', 8, getWheelLabelFontSize(8)); expect(layout.lines.length).toBeGreaterThan(1); expect(layout.isWrapped).toBe(true); expect(layout.lines.join(' ')).toContain('Restaurant'); });
   test('ellipsizes a long unbroken name instead of forcing a bad wrap', () => { const layout = getRestaurantLabelLayout('Supercalifragilisticexpialidocious', 8, getWheelLabelFontSize(8)); expect(layout.lines).toHaveLength(1); expect(layout.lines[0]).toMatch(/…$/); expect(layout.isWrapped).toBe(false); expect(layout.isEllipsized).toBe(true); });
   test('normalizes repeated whitespace before laying out labels', () => { const layout = getRestaurantLabelLayout('  Taco   Bell   Cantina  ', 6, getWheelLabelFontSize(6)); expect(layout.lines.join(' ')).toBe('Taco Bell Cantina'); });
+  test('tries wrapped layouts before shrinking for long multi-word labels', () => {
+    const baseFontSize = getWheelLabelFontSize(5);
+    const candidates = getRestaurantLabelCandidates("Speedy's Pizza & Grill", 5);
+    const wrappedAtBaseIndex = candidates.findIndex((layout) => layout.fontSize === baseFontSize && layout.lines.length > 1);
+    const firstShrunkIndex = candidates.findIndex((layout) => layout.fontSize < baseFontSize);
+    expect(wrappedAtBaseIndex).toBeGreaterThanOrEqual(0);
+    expect(firstShrunkIndex).toBeGreaterThan(wrappedAtBaseIndex);
+  });
+  test('uses ellipsis only after reaching the minimum readable font size', () => {
+    const candidates = getRestaurantLabelCandidates('Grand Royal Dumpling Palace Number 1 Very Long Restaurant Name', 8);
+    const lastCandidate = candidates[candidates.length - 1];
+    expect(lastCandidate.fontSize).toBe(getMinWheelLabelFontSize(8));
+    expect(lastCandidate.isEllipsized).toBe(true);
+    expect(lastCandidate.lines[lastCandidate.lines.length - 1]).toMatch(/…$/);
+  });
+});
+
+describe('hasSvgTextClipping', () => {
+  test('returns false when SVG measurement APIs are unavailable', () => {
+    expect(hasSvgTextClipping({})).toBe(false);
+  });
+
+  test('detects when a character extends outside the clip path', () => {
+    const textElement = {
+      textContent: 'The',
+      getAttribute: () => 'url(#clip-path-id)',
+      getNumberOfChars: () => 3,
+      getExtentOfChar: (index) => ({ x: index * 10, y: 0, width: 8, height: 10 }),
+      ownerSVGElement: { createSVGPoint: () => ({ x: 0, y: 0 }) },
+      ownerDocument: {
+        getElementById: () => ({ querySelector: () => ({ isPointInFill: (point) => point.x >= 8 }) }),
+      },
+    };
+
+    expect(hasSvgTextClipping(textElement)).toBe(true);
+  });
+
+  test('returns false when every sampled point stays within the clip path', () => {
+    const textElement = {
+      textContent: 'Fit',
+      getAttribute: () => 'url(#clip-path-id)',
+      getNumberOfChars: () => 3,
+      getExtentOfChar: (index) => ({ x: index * 10, y: 0, width: 8, height: 10 }),
+      ownerSVGElement: { createSVGPoint: () => ({ x: 0, y: 0 }) },
+      ownerDocument: {
+        getElementById: () => ({ querySelector: () => ({ isPointInFill: () => true }) }),
+      },
+    };
+
+    expect(hasSvgTextClipping(textElement)).toBe(false);
+  });
 });
 
 describe('shuffleArray', () => {

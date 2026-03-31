@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   WHEEL_R,
   OUTER_RING_R,
@@ -6,8 +6,8 @@ import {
   SVG_SIZE,
   CASINO_COLORS,
   buildSegPath,
-  getRestaurantLabelLayout,
-  getWheelLabelFontSize,
+  getRestaurantLabelCandidates,
+  hasSvgTextClipping,
 } from './rouletteUtils.jsx';
 
 let _audioCtx = null;
@@ -64,8 +64,9 @@ function playWin() {
 
 const WHEEL_SPEED = (2 * Math.PI) / 900;
 
-export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete, disabled = false }) {
+export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSpinComplete, disabled = false, busy = false }) {
   const wheelGroupRef = useRef(null);
+  const textRefs = useRef([]);
   const rafRef = useRef(null);
   const wheelAngle = useRef(0);
   const phase = useRef('idle');
@@ -84,6 +85,10 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
   const singleRestaurant = restaurants.length === 1;
   const n = Math.max(1, Math.min(8, restaurants.length));
   const sa = (2 * Math.PI) / n;
+  const labelKey = useMemo(
+    () => `${n}:${restaurants.map((restaurant) => `${restaurant.id || 'no-id'}:${restaurant.name}`).join('|')}`,
+    [restaurants, n]
+  );
 
   useEffect(() => {
     winnerRef.current = winnerIndex;
@@ -182,8 +187,50 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     }
   }
 
-  const fontSize = getWheelLabelFontSize(n);
-  const labelLayouts = restaurants.map((restaurant) => getRestaurantLabelLayout(restaurant.name, n, fontSize));
+  useLayoutEffect(() => {
+    moveWheel();
+  }, [labelKey, spinning, winnerIndex, done]);
+
+  const labelCandidates = useMemo(
+    () => restaurants.map((restaurant) => getRestaurantLabelCandidates(restaurant.name, n)),
+    [restaurants, n]
+  );
+  const [layoutIndexes, setLayoutIndexes] = useState(() => restaurants.map(() => 0));
+
+  useEffect(() => {
+    textRefs.current = [];
+    setLayoutIndexes(restaurants.map(() => 0));
+  }, [labelKey]);
+
+  useLayoutEffect(() => {
+    if (!restaurants.length) return undefined;
+
+    let disposed = false;
+    const timers = [0, 80, 180].map((delay) => window.setTimeout(() => {
+      if (disposed) return;
+      let nextIndexes = null;
+
+      labelCandidates.forEach((candidates, index) => {
+        const currentIndex = layoutIndexes[index] ?? 0;
+        if (currentIndex >= candidates.length - 1) return;
+        if (!hasSvgTextClipping(textRefs.current[index])) return;
+
+        nextIndexes = nextIndexes || [...layoutIndexes];
+        nextIndexes[index] = currentIndex + 1;
+      });
+
+      if (nextIndexes) {
+        setLayoutIndexes((current) => current.map((value, index) => Math.max(value ?? 0, nextIndexes[index] ?? value ?? 0)));
+      }
+    }, delay));
+
+    return () => {
+      disposed = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [labelCandidates, layoutIndexes, restaurants.length]);
+
+  const labelLayouts = labelCandidates.map((candidates, index) => candidates[Math.min(layoutIndexes[index] ?? 0, candidates.length - 1)]);
 
   const rimDiamonds = Array.from({ length: 18 });
 
@@ -191,6 +238,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
     <div
       className={`roulette-wrap${disabled ? ' is-disabled' : ''}`}
       aria-disabled={disabled ? 'true' : 'false'}
+      aria-busy={busy ? 'true' : 'false'}
     >
       <svg
         viewBox={`-${SVG_SIZE} -${SVG_SIZE} ${SVG_SIZE * 2} ${SVG_SIZE * 2}`}
@@ -222,7 +270,7 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
           </radialGradient>
           {restaurants.map((restaurant, i) => (
             <clipPath key={`rw-slice-clip-${restaurant.id || i}`} id={`rw-slice-clip-${n}-${i}`}>
-              <path d={buildSegPath(i, n)} />
+              {singleRestaurant ? <circle r={WHEEL_R} /> : <path d={buildSegPath(i, n)} />}
             </clipPath>
           ))}
         </defs>
@@ -295,12 +343,15 @@ export default function RouletteWheel({ restaurants, spinning, winnerIndex, onSp
                   />
                 )}
                 <text
+                  ref={(node) => {
+                    textRefs.current[i] = node;
+                  }}
                   x={tx}
                   y={ty}
                   textAnchor="middle"
                   dominantBaseline="middle"
                   fill={isWinner ? '#1a1a1a' : 'white'}
-                  fontSize={fontSize}
+                  fontSize={labelLayout.fontSize}
                   fontWeight="700"
                   fontFamily="'Segoe UI', system-ui, sans-serif"
                   letterSpacing="0.01em"
