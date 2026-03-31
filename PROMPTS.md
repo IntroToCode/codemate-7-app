@@ -489,3 +489,43 @@ add roulette sound effect.
 **Prompt:** "Implement code, update prompt.md, then run test with playwright and run test suite"
 
 **Author:** Alan
+
+---
+
+### 3/31/2026 — ~1:00 PM
+
+**Prompt:** "implement and validate with playwright, plus create targeted tests to ensure it now is working"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~1:15 PM
+
+**Prompt:** "run regression test to ensure nothing has broken"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~1:30 PM
+
+**Prompt:** "can you run test from 1 to 8 slice to ensure the fix is now working"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:00 PM
+
+**Prompt:** "run regression testing, and if all pass, stage and commit, and push, also open a PR"
+
+**Author:** Alan
+
+---
+
+### 3/31/2026 — ~2:15 PM
+
+**Prompt:** "updates all the prompts here to PROMPTS.md"
+
+**Author:** Alan
