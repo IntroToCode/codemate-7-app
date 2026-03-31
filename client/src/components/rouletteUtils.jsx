@@ -62,10 +62,16 @@ function getLineOffsets(lineCount, lineHeight) {
 
 function getSliceLineMaxWidth(radius, segmentAngle, fontSize) {
   const effectiveRadius = Math.max(HUB_R + 6, radius - fontSize * 0.92);
-  const tangentWidth = 2 * effectiveRadius * Math.tan(segmentAngle / 2);
   const usableOuterRadius = WHEEL_R - Math.max(10, fontSize * 1.1);
-  const circleChordWidth = 2 * Math.sqrt(Math.max(0, usableOuterRadius * usableOuterRadius - effectiveRadius * effectiveRadius));
   const sideMargin = Math.max(8, fontSize * 0.72);
+
+  if (segmentAngle >= 2 * Math.PI - 0.01) {
+    const diameter = 2 * usableOuterRadius;
+    return Math.max(fontSize * 2.2, diameter - sideMargin * 2);
+  }
+
+  const tangentWidth = 2 * effectiveRadius * Math.tan(segmentAngle / 2);
+  const circleChordWidth = 2 * Math.sqrt(Math.max(0, usableOuterRadius * usableOuterRadius - effectiveRadius * effectiveRadius));
   const maxAllowedWidth = Math.min(tangentWidth, circleChordWidth);
   return Math.max(fontSize * 2.2, maxAllowedWidth - sideMargin * 2);
 }
@@ -170,7 +176,7 @@ function getLabelGeometry(segmentCount, fontSize) {
     const maxWidths = getLineOffsets(lineCount, lineHeight).map((offset) => {
       const lineRadius = Math.max(innerRadius, Math.min(outerRadius, anchorRadius + offset));
       const maxWidth = getSliceLineMaxWidth(lineRadius, segmentAngle, fontSize);
-      return safeSegmentCount === 1 ? Math.max(fontSize * 2, maxWidth - fontSize * 4) : maxWidth;
+      return maxWidth;
     });
     return { anchorRadius, maxWidths };
   }
