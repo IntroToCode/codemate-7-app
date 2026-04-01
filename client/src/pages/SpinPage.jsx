@@ -300,7 +300,9 @@ export default function SpinPage({ onSpin }) {
   const showSpinButton = !noMatch && (!showPoolWarning || hasParkedResult);
 
   useEffect(() => {
-    if (!wheelReady || spinInProgress.current || spinning || vetoing || hasParkedResult) return;
+    if (!wheelReady || spinInProgress.current || spinning || vetoing) return;
+
+    if (hasParkedResult) setWinnerIndex(null);
 
     if (eligibleRestaurants.length === 0) {
       setWheelRestaurants([]);
@@ -423,7 +425,7 @@ export default function SpinPage({ onSpin }) {
               type="checkbox"
               checked={excludeRecent}
               onChange={(e) => setExcludeRecent(e.target.checked)}
-              disabled={controlsLocked}
+              disabled={wheelBusy}
             />
             <span>Skip recently visited (7 days)</span>
           </label>
