@@ -302,6 +302,8 @@ export default function SpinPage({ onSpin }) {
   useEffect(() => {
     if (!wheelReady || spinInProgress.current || spinning || vetoing) return;
 
+    if (hasParkedResult) setWinnerIndex(null);
+
     if (eligibleRestaurants.length === 0) {
       setWheelRestaurants([]);
       return;
@@ -313,7 +315,6 @@ export default function SpinPage({ onSpin }) {
     }
 
     setWheelRestaurants(buildWheelPool(eligibleRestaurants));
-    if (hasParkedResult) setWinnerIndex(null);
   }, [wheelReady, eligibleRestaurants, spinning, vetoing, hasParkedResult]);
 
   return (
